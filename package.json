@@ -1,0 +1,9 @@
+{
+  "name": "chesu",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "server:dev": "cargo run"
+  },
+  "workspaces": ["apps/*", "packages/*"]
+}
