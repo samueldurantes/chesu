@@ -14,12 +14,15 @@
     "@remix-run/node": "^2.9.2",
     "@remix-run/react": "^2.9.2",
     "@remix-run/serve": "^2.9.2",
+    "chess.js": "^1.0.0-beta.8",
     "isbot": "^4.1.0",
     "react": "^18.2.0",
+    "react-chessboard": "^4.6.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@remix-run/dev": "^2.9.2",
+    "@types/chess.js": "^0.13.7",
     "@types/react": "^18.2.20",
     "@types/react-dom": "^18.2.7",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
