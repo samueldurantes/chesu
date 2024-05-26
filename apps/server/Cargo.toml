@@ -1,8 +1,35 @@
 [package]
 name = "server"
-version = "0.1.0"
+version = "0.0.1"
+resolver = "2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.48"
+argon2 = "0.5"
+axum = { version = "0.7.4", features = ["tokio", "tracing"] }
+axum-extra = { version = "0.9.3", features = ["typed-header", "cookie-private", "cookie-key-expansion"] }
+axum-util = "0.2.2"
+validator = { version = "0.17", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "uuid", "time"] }
+dotenvy = "0.15.7"
+reqwest = { version = "0.11.24", features = ["json"] }
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.114"
+tokio = { version = "1.36.0", features = ["full"] }
+uuid = { version = "1.7.0", features = ["v4", "serde"] }
+thiserror = "1.0.30"
+rand = "0.8.4"
+jwt-simple = "0.12.9"
+tower = "0.4.11"
+tower-http = { version = "0.5.0", features = [
+    "catch-panic",
+    "compression-full",
+    "sensitive-headers",
+    "timeout",
+    "trace",
+] }
