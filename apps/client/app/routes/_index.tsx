@@ -10,9 +10,9 @@ export const meta: MetaFunction = () => {
 
 const Index = () => {
   return (
-    <div className="container">
-      <Link to="/game">Play a match</Link>
-    </div>
+    <div className="">
+      <Link to="/game" className="hover:invisible">Play a match</Link>
+    </div >
   );
 };
 
