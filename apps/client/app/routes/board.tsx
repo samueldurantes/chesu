@@ -7,7 +7,7 @@ interface Move { from: string, to: string, promotion?: string | undefined };
 const Board = () => {
   const [game, setGame] = useState(new Chess());
 
-  function playMove(move: string | Move) {
+  const playMove = (move: string | Move) => {
     const gameCopy = new Chess(game.fen());
     let result;
     try {
@@ -16,13 +16,14 @@ const Board = () => {
 
     if (result) {
       setGame(gameCopy);
+
       //Send fetch new_move 
     }
     return result;
   }
 
 
-  function onDrop(sourceSquare: Square, targetSquare: Square): boolean {
+  const onDrop = (sourceSquare: Square, targetSquare: Square): boolean => {
     const move = playMove({
       from: sourceSquare,
       to: targetSquare,
