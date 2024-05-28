@@ -44,20 +44,6 @@ pub async fn register(
         });
     }
 
-    let user_already_exists: Option<String> = sqlx::query_scalar(
-        "SELECT username FROM users WHERE email = $1"        
-    )
-    .bind(&payload.user.email)
-    .fetch_optional(&context.db)
-    .await
-    .unwrap();
-
-    if let Some(_) = user_already_exists {
-        return Err(Error::BadRequest {
-            error: "User already exists".to_string(),
-        });
-    }
-
     let password_hash = hash_password(payload.user.password).await?;
     let user = sqlx::query_scalar!(
         r#"
@@ -67,12 +53,11 @@ pub async fn register(
         payload.user.email,
         password_hash,
     )
-    .fetch_optional(&context.db)
-    .await
-    .unwrap();
+    .fetch_one(&context.db)
+    .await;
 
     match user {
-        Some(user_id) => {
+        Ok(user_id) => {
             let token = AuthUser { user_id }.to_jwt();
 
             Ok(Json(UserBody {
@@ -84,9 +69,17 @@ pub async fn register(
                 }
             }))
         },
-        None => Err(Error::BadRequest {
-            error: "Error when creating user".to_string(),
-        }),
+        Err(e) => {
+            if let sqlx::Error::Database(db_err) = &e {
+                if db_err.is_unique_violation() {
+                    return Err(Error::BadRequest {
+                        error: "Already exists an user with these credentials".to_string(),
+                    });
+                }
+            }
+
+            return Err(Error::Anyhow(e.into()))
+        }
     }
 }
 
@@ -116,18 +109,14 @@ pub async fn login(
 
     let token = AuthUser { user_id: user.id }.to_jwt();
 
-    Ok(
-        {
-            Json(UserBody {
-                user: User {
-                    id: user.id.to_string(),
-                    username: user.username,
-                    email: user.email,
-                    token,
-                }
-            })
+    Ok(Json(UserBody {
+        user: User {
+            id: user.id.to_string(),
+            username: user.username,
+            email: user.email,
+            token,
         }
-    )
+    }))
 }
 
 async fn verify_password(password: String, password_hash: String) -> Result<()> {
@@ -173,7 +162,7 @@ fn validate_user_payload<T: Validate>(user_body: &UserBody<T>) -> Option<String>
 
             if let Some((_, err)) = validation_errs.iter().next() {
                 // TODO: Improve this
-                let message = err[0].message.clone().unwrap();
+                let message = err[0].message.clone()?;
 
                 return Some(format!("{}", message));
             }
