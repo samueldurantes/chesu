@@ -23,7 +23,7 @@ pub enum Error {
 
     /// Return `404 Not Found`
     #[error("request path not found")]
-    NotFound,
+    NotFound { error: String },
 
     /// Return `422 Unprocessable Entity`
     #[error("error in the request body")]
@@ -61,7 +61,7 @@ impl Error {
             Self::BadRequest { .. } => StatusCode::BAD_REQUEST,
             Self::Unauthorized { .. } => StatusCode::UNAUTHORIZED,
             Self::Forbidden => StatusCode::FORBIDDEN,
-            Self::NotFound => StatusCode::NOT_FOUND,
+            Self::NotFound { .. } => StatusCode::NOT_FOUND,
             Self::UnprocessableEntity { .. } => StatusCode::UNPROCESSABLE_ENTITY,
             Self::Sqlx(_) | Self::Anyhow(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -72,6 +72,10 @@ impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match &self {
             Self::BadRequest { error } => {
+                return (self.status_code(), Json(json!({ "error": error }))).into_response()
+            }
+
+            Self::NotFound { error } => {
                 return (self.status_code(), Json(json!({ "error": error }))).into_response()
             }
 
@@ -89,6 +93,7 @@ impl IntoResponse for Error {
                 )
                     .into_response();
             }
+
             Self::Unauthorized { error } => {
                 return (
                     self.status_code(),
