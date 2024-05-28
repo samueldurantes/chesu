@@ -40,7 +40,7 @@ impl AuthUser {
                 user_id: claims.custom.user_id,
             }),
             Err(_) => Err(Error::Unauthorized {
-                error: "Token invalid".to_string(),
+                error: "Not authorized".to_string(),
             }),
         }
     }
@@ -59,11 +59,11 @@ where
             .headers
             .get(AUTHORIZATION)
             .ok_or(Error::Unauthorized {
-                error: "Token invalid!".to_string(),
+                error: "Not authorized".to_string(),
             })?;
 
         let token = auth_header.to_str().map_err(|_| Error::Unauthorized {
-            error: "Token invalid!".to_string(),
+            error: "Not authorized".to_string(),
         })?;
 
         Self::from_jwt(token)
