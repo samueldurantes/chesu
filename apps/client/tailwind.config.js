@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   darkMode: ["class"],
   content: [
     './pages/**/*.{ts,tsx}',
@@ -17,6 +17,14 @@ module.exports = {
       },
     },
     extend: {
+      colors: {
+        'white': '#fff',
+        'black': '#000',
+        'navy': '#003B73',
+        'royal': '#0074B7',
+        'grotto': '#60A3D9',
+        'baby': '#BFD7ED',
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -26,6 +34,9 @@ module.exports = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+      },
+      fontFamily: {
+        'kadwa': ['Kadwa', 'serif'],
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
