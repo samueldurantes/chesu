@@ -5,15 +5,15 @@ import {
   Scripts,
   ScrollRestoration,
 } from '@remix-run/react';
+import type { LinksFunction } from '@remix-run/node';
 
-import type { LinksFunction } from "@remix-run/node";
-import stylesheet from "~/tailwind.css?url";
+import stylesheet from './tailwind.css?url';
 
 export const links: LinksFunction = () => [
-  { rel: "stylesheet", href: stylesheet },
+  { rel: 'stylesheet', href: stylesheet },
 ];
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export const Layout = ({ children }: { children: React.ReactNode }) => {
   return (
     <html lang="en">
       <head>
@@ -29,8 +29,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </body>
     </html>
   );
-}
+};
 
-export default function App() {
+const App = () => {
   return <Outlet />;
-}
+};
+
+export default App;

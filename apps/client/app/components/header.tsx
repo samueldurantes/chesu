@@ -1,4 +1,4 @@
-import { Button } from "../components/ui/button";
+import { useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -6,13 +6,13 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
-import { User, CreditCard, Eye, EyeOff, LogOut } from "lucide-react";
-import { Link } from "@remix-run/react";
+} from './ui/dropdown-menu';
+import { User, CreditCard, Eye, EyeOff, LogOut } from 'lucide-react';
+import { Link } from '@remix-run/react';
 
-import { useState } from "react";
+import { Button } from './ui/button';
 
-const TopNav = () => {
+const Header = () => {
   const [balanceVisibility, setBalanceVisibity] = useState(true);
 
   return (
@@ -20,10 +20,20 @@ const TopNav = () => {
       <div className="text-black font-kadwa font-bold text-5xl select-none">
         <Link to="/home">chesu</Link>
       </div>
-      <div >
-        <Button variant="ghost" className="mr-4" onClick={() => setBalanceVisibity(!balanceVisibility)}>
-          <div className="text-lg font-kadwa">R$ {balanceVisibility ? "1023,00" : "****"}</div>
-          {balanceVisibility ? <Eye className="ml-2" /> : <EyeOff className="ml-2" />}
+      <div>
+        <Button
+          variant="ghost"
+          className="mr-4"
+          onClick={() => setBalanceVisibity(!balanceVisibility)}
+        >
+          <div className="text-lg font-kadwa">
+            R$ {balanceVisibility ? '1023,00' : '****'}
+          </div>
+          {balanceVisibility ? (
+            <Eye className="ml-2" />
+          ) : (
+            <EyeOff className="ml-2" />
+          )}
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -50,7 +60,8 @@ const TopNav = () => {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </div >);
+    </div>
+  );
 };
 
-export default TopNav;
+export default Header;
