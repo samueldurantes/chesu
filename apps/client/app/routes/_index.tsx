@@ -1,5 +1,8 @@
 import type { MetaFunction } from '@remix-run/node';
 
+import Board from '../components/board';
+import NewMatch from '../components/new-match';
+
 export const meta: MetaFunction = () => {
   return [
     { title: 'chesu' },
@@ -12,11 +15,12 @@ export const meta: MetaFunction = () => {
 
 const Index = () => {
   return (
-    <div className="flex">
-      <div className="h-screen bg-black w-[70%]">h1</div>
-      <div className="h-screen flex flex-col w-[30%]">
-        <div className="h-[50%] bg-slate-900">h2</div>
-        <div className="h-[50%] bg-gray-800">h3</div>
+    <div className="h-screen flex">
+      <div className="h-screen w-[70%] flex items-center justify-center border">
+        <Board boardOrientation="white" />
+      </div>
+      <div className="h-screen flex flex-col w-[30%] border">
+        <NewMatch />
       </div>
     </div>
   );
