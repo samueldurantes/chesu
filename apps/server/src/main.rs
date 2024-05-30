@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use axum::{http::header::AUTHORIZATION, routing::{post}, Router};
+use axum::{http::header::AUTHORIZATION, routing::{get, post}, Router};
 use dotenvy::dotenv;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tower_http::{
@@ -30,16 +30,19 @@ async fn main() -> anyhow::Result<()> {
         .max_connections(50)
         // TODO: Improve this to show when DATABASE_URL is void
         .connect(&std::env::var("DATABASE_URL").unwrap())
-        .await
-        .unwrap();
+        .await?;
 
     sqlx::migrate!().run(&db).await?;
 
     let context = Context { db };
 
     let app = Router::new()
+        // Auth routes
         .route("/auth/register", post(http::auth::register))
         .route("/auth/login", post(http::auth::login))
+        // Game routes
+        .route("/game/:id", get(http::game::get_game))
+        .route("/game/create", post(http::game::create_game))
         .layer((
             SetSensitiveHeadersLayer::new([AUTHORIZATION]),
             CompressionLayer::new(),

@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod error;
 pub mod extractor;
+pub mod game;
 
 pub use error::{Error, ResultExt};
 
