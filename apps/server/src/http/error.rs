@@ -7,7 +7,7 @@ use sqlx::error::DatabaseError;
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, aide::OperationIo)]
 pub enum Error {
     /// Return `400 Bad Request`
     #[error("bad request")]

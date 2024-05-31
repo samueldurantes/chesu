@@ -1,4 +1,4 @@
-use crate::{http::error::Error, Context};
+use crate::{http::error::Error, State};
 use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},
@@ -8,6 +8,7 @@ use jwt_simple::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(aide::OperationIo)]
 pub struct AuthUser {
     pub user_id: Uuid,
 }
@@ -50,7 +51,7 @@ impl AuthUser {
 impl<S> FromRequestParts<S> for AuthUser
 where
     S: Send + Sync,
-    Context: FromRef<S>,
+    State: FromRef<S>,
 {
     type Rejection = Error;
 

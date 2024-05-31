@@ -1,6 +1,7 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
-use axum::{http::header::AUTHORIZATION, routing::{get, post}, Router};
+use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
+use axum::{http::header::AUTHORIZATION, Extension};
 use dotenvy::dotenv;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tower_http::{
@@ -12,12 +13,18 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 pub mod http;
 
 #[derive(Clone)]
-pub struct Context {
+pub struct State {
     pub db: PgPool,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    aide::gen::on_error(|error| {
+        println!("{error}");
+    });
+
+    aide::gen::extract_schemas(true);
+
     // Load .env file
     dotenv().expect(".env file not found");
 
@@ -34,27 +41,35 @@ async fn main() -> anyhow::Result<()> {
 
     sqlx::migrate!().run(&db).await?;
 
-    let context = Context { db };
+    let state = State { db };
 
-    let app = Router::new()
+    let mut api = OpenApi::default();
+    let app = ApiRouter::new()
         // Auth routes
-        .route("/auth/register", post(http::auth::register))
-        .route("/auth/login", post(http::auth::login))
+        .merge(http::auth::router())
+        // Docs routes
+        .merge(http::docs::router())
         // Game routes
-        .route("/game/:id", get(http::game::get_game))
-        .route("/game/create", post(http::game::create_game))
+        .merge(http::game::router())
+        .finish_api_with(&mut api, api_docs)
         .layer((
             SetSensitiveHeadersLayer::new([AUTHORIZATION]),
             CompressionLayer::new(),
             TraceLayer::new_for_http().on_failure(()),
             TimeoutLayer::new(Duration::from_secs(30)),
             CatchPanicLayer::new(),
+            Extension(Arc::new(api)),
         ))
-        .with_state(context);
+        .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("::1:3000").await.unwrap();
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 
     Ok(())
+}
+
+fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
+    api.title("Chesu API")
+        .description("Chesu API Documentation")
 }

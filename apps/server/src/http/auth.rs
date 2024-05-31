@@ -1,47 +1,56 @@
+use crate::http::{error::Error, extractor::AuthUser, Result};
+use aide::{
+    axum::{routing::post_with, ApiRouter},
+    transform::TransformOperation,
+};
 use anyhow::Context;
 use argon2::{password_hash::SaltString, Argon2, PasswordHash};
 use axum::{extract::State, Json};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use crate::http::{error::Error, extractor::AuthUser, Result};
 use validator::Validate;
 
-#[derive(Serialize, Deserialize)]
-pub struct UserBody<T> {
-    pub user: T,
+pub(crate) fn router() -> ApiRouter<crate::State> {
+    ApiRouter::new()
+        .api_route("/auth/register", post_with(register, register_docs))
+        .api_route("/auth/login", post_with(login, login_docs))
 }
 
-#[derive(Validate, Deserialize)]
-pub struct LoginUser {
-    #[validate(email(message = "Invalid email"))]
-    pub email: String,
-    pub password: String,
+#[derive(Serialize, Deserialize, JsonSchema)]
+struct UserBody<T> {
+    user: T,
 }
 
-#[derive(Validate, Deserialize)]
-pub struct RegisterUser {
-    pub username: String,
+#[derive(Validate, Deserialize, JsonSchema)]
+struct LoginUser {
     #[validate(email(message = "Invalid email"))]
-    pub email: String,
+    email: String,
+    password: String,
+}
+
+#[derive(Validate, Deserialize, JsonSchema)]
+struct RegisterUser {
+    username: String,
+    #[validate(email(message = "Invalid email"))]
+    email: String,
     #[validate(length(min = 8, message = "Password must be at least 8 characters"))]
-    pub password: String,
+    password: String,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct User {
-    pub id: String,
-    pub username: String,
-    pub email: String,
-    pub token: String,
+#[derive(Serialize, Deserialize, JsonSchema)]
+struct User {
+    id: String,
+    username: String,
+    email: String,
+    token: String,
 }
 
-pub async fn register(
-    context: State<crate::Context>,
-    Json(payload): Json<UserBody<RegisterUser>>
+async fn register(
+    state: State<crate::State>,
+    Json(payload): Json<UserBody<RegisterUser>>,
 ) -> Result<Json<UserBody<User>>> {
     if let Some(error) = validate_user_payload(&payload) {
-        return Err(Error::BadRequest {
-            error,
-        });
+        return Err(Error::BadRequest { error });
     }
 
     let password_hash = hash_password(payload.user.password).await?;
@@ -53,7 +62,7 @@ pub async fn register(
         payload.user.email,
         password_hash,
     )
-    .fetch_one(&context.db)
+    .fetch_one(&state.db)
     .await;
 
     match user {
@@ -66,9 +75,9 @@ pub async fn register(
                     username: payload.user.username,
                     email: payload.user.email,
                     token,
-                }
+                },
             }))
-        },
+        }
         Err(e) => {
             if let sqlx::Error::Database(db_err) = &e {
                 if db_err.is_unique_violation() {
@@ -78,19 +87,23 @@ pub async fn register(
                 }
             }
 
-            return Err(Error::Anyhow(e.into()))
+            return Err(Error::Anyhow(e.into()));
         }
     }
 }
 
-pub async fn login(
-    context: State<crate::Context>,
+fn register_docs(op: TransformOperation) -> TransformOperation {
+    op.tag("Auth")
+        .description("Register an user")
+        .response::<200, Json<UserBody<User>>>()
+}
+
+async fn login(
+    state: State<crate::State>,
     Json(payload): Json<UserBody<LoginUser>>,
 ) -> Result<Json<UserBody<User>>> {
     if let Some(error) = validate_user_payload(&payload) {
-        return Err(Error::BadRequest {
-            error,
-        });
+        return Err(Error::BadRequest { error });
     }
 
     let user = sqlx::query!(
@@ -99,7 +112,7 @@ pub async fn login(
         "#,
         payload.user.email,
     )
-    .fetch_optional(&context.db)
+    .fetch_optional(&state.db)
     .await?
     .ok_or_else(|| Error::BadRequest {
         error: "User not found".to_string(),
@@ -115,23 +128,27 @@ pub async fn login(
             username: user.username,
             email: user.email,
             token,
-        }
+        },
     }))
+}
+
+fn login_docs(op: TransformOperation) -> TransformOperation {
+    op.tag("Auth")
+        .description("Login an user")
+        .response::<200, Json<UserBody<User>>>()
 }
 
 async fn verify_password(password: String, password_hash: String) -> Result<()> {
     tokio::task::spawn_blocking(move || -> Result<()> {
         let hash = PasswordHash::new(&password_hash)
             .map_err(|e| anyhow::anyhow!("Failed to parse password hash: {}", e))?;
-        
+
         hash.verify_password(&[&Argon2::default()], password)
             .map_err(|e| match e {
-                argon2::password_hash::Error::Password => {
-                    Error::BadRequest {
-                        error: "Email or password incorrect".to_string(),
-                    }
+                argon2::password_hash::Error::Password => Error::BadRequest {
+                    error: "Email or password incorrect".to_string(),
                 },
-                _ => anyhow::anyhow!("Failed to verify password hash: {}", e).into()
+                _ => anyhow::anyhow!("Failed to verify password hash: {}", e).into(),
             })
     })
     .await
