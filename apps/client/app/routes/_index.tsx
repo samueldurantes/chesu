@@ -1,7 +1,14 @@
-import type { MetaFunction } from '@remix-run/node';
+import type {
+  ActionFunctionArgs,
+  LoaderFunctionArgs,
+  MetaFunction,
+} from '@remix-run/node';
+import { redirect } from '@remix-run/node';
+import { Form, useLoaderData } from '@remix-run/react';
 
+import api from '../adapters/api';
 import Board from '../components/board';
-import NewMatch from '../components/new-match';
+import { Button } from '../components/ui/button';
 
 export const meta: MetaFunction = () => {
   return [
@@ -13,14 +20,68 @@ export const meta: MetaFunction = () => {
   ];
 };
 
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { data, error } = await (await api.authorized(request)).GET('/user/me');
+
+  if (error) {
+    return {};
+  }
+
+  return {
+    user: {
+      username: data.user.username,
+    },
+  };
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { data, error } = await (
+    await api.authorized(request)
+  ).POST('/game/create', {
+    body: {
+      game: {
+        bet_value: 0,
+      },
+    },
+  });
+
+  if (error || !data) {
+    return {
+      error,
+    };
+  }
+
+  return redirect(`/game/${data.game.id}`);
+};
+
 const Index = () => {
+  const data = useLoaderData<typeof loader>();
+
+  const getName = () => {
+    if (!data?.user) {
+      return 'Opponent';
+    }
+
+    return data?.user?.username;
+  };
+
   return (
-    <div className="h-screen flex">
-      <div className="h-screen w-[70%] flex items-center justify-center border">
+    <div className="h-screen flex items-center justify-center gap-2">
+      <div className="flex flex-col gap-4 w-full max-w-[750px] px-6">
+        <div className="flex bg-slate-300 p-4 gap-3">
+          <div className="bg-slate-800 h-[50px] w-[50px]"></div>
+          <span>Opponent</span>
+        </div>
         <Board boardOrientation="white" />
-      </div>
-      <div className="h-screen flex flex-col w-[30%] border">
-        <NewMatch />
+        <div className="flex bg-slate-300 p-4 gap-3">
+          <div className="bg-slate-800 h-[50px] w-[50px]"></div>
+          <span>{getName()}</span>
+        </div>
+        {data?.user && (
+          <Form method="post">
+            <Button className="w-full">Play</Button>
+          </Form>
+        )}
       </div>
     </div>
   );

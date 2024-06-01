@@ -9,24 +9,20 @@ type Move = {
 };
 
 type Props = {
+  fen?: string;
   boardOrientation: 'white' | 'black';
+  onMove: (move: string) => void;
 };
 
 const Board = (props: Props) => {
-  const [game, setGame] = useState(new Chess());
-
   const playMove = (move: string | Move) => {
-    const gameCopy = new Chess(game.fen());
-    let result;
-    try {
-      result = gameCopy.move(move).san;
-    } catch (e) {}
+    const gameCopy = new Chess(props.fen);
+    const result = gameCopy.move(move).san;
 
     if (result) {
-      setGame(gameCopy);
-
-      //Send fetch new_move
+      props.onMove && props.onMove(result);
     }
+
     return result;
   };
 
@@ -40,15 +36,12 @@ const Board = (props: Props) => {
   };
 
   return (
-    <div className="flex justify-center items-center">
-      <Chessboard
-        boardWidth={1000}
-        boardOrientation={props.boardOrientation}
-        showPromotionDialog={true}
-        position={game.fen()}
-        onPieceDrop={onDrop}
-      />
-    </div>
+    <Chessboard
+      boardOrientation={props.boardOrientation}
+      showPromotionDialog={true}
+      position={props.fen}
+      onPieceDrop={onDrop}
+    />
   );
 };
 

@@ -34,18 +34,21 @@ export const validationAction = async ({
     return {
       formData,
       errors: [],
+      success: true,
     };
   } catch (error) {
     if (error instanceof ZodError) {
       return {
         formData,
         errors: normalizeErrors(error.errors),
+        success: false,
       };
     }
 
     return {
       formData,
       errors: [],
+      success: true,
     };
   }
 };

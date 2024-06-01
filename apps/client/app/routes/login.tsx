@@ -1,5 +1,11 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { z } from 'zod';
-import { ActionFunction, MetaFunction } from '@remix-run/node';
+import {
+  ActionFunctionArgs,
+  LoaderFunctionArgs,
+  MetaFunction,
+  redirect,
+} from '@remix-run/node';
 import { Form, useActionData } from '@remix-run/react';
 
 import { Label } from '../components/ui/label';
@@ -12,6 +18,8 @@ import {
   Card,
 } from '../components/ui/card';
 import { validationAction } from '../utils/validationAction';
+import { commitSession, getSession } from '../utils/createSession';
+import api from '../adapters/api';
 
 export const meta: MetaFunction = () => {
   return [{ title: 'Login | Chesu' }];
@@ -22,10 +30,29 @@ const schema = z.object({
   password: z.string(),
 });
 
-export const action: ActionFunction = async ({ request }) => {
-  const { formData, errors } = await validationAction({ request, schema });
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const session = await getSession(request.headers.get('Cookie'));
 
-  if (errors) {
+  if (!session.data.token) {
+    return null;
+  }
+
+  return redirect('/', {
+    headers: {
+      'Set-Cookie': await commitSession(session),
+    },
+  });
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { formData, errors, success } = await validationAction({
+    request,
+    schema,
+  });
+
+  const session = await getSession(request.headers.get('Cookie'));
+
+  if (!success) {
     return {
       errors,
     };
@@ -33,10 +60,29 @@ export const action: ActionFunction = async ({ request }) => {
 
   const { email, password } = formData;
 
-  return {
-    email,
-    password,
-  };
+  const { data, error } = await api.unauthorized.POST('/auth/login', {
+    body: {
+      user: {
+        email: email.toString(),
+        password: password.toString(),
+      },
+    },
+  });
+
+  if (error || !data) {
+    return {
+      // @ts-ignore
+      error: error?.error,
+    };
+  }
+
+  session.set('token', data.user.token);
+
+  return redirect('/', {
+    headers: {
+      'Set-Cookie': await commitSession(session),
+    },
+  });
 };
 
 const Login = () => {
@@ -45,7 +91,14 @@ const Login = () => {
   return (
     <div className="h-screen flex items-center justify-center bg-[#121212] px-6">
       <Card className="bg-[#1e1e1e] max-w-screen-sm w-full">
-        <CardHeader className="text-white">
+        <CardHeader className="text-white gap-5">
+          {/* @ts-ignore */}
+          {data?.error ? (
+            <div className="w-full bg-red-500 p-3 rounded">
+              {/* @ts-ignore */}
+              <p>{data?.error}</p>
+            </div>
+          ) : null}
           <CardTitle>Login</CardTitle>
         </CardHeader>
         <CardContent>
