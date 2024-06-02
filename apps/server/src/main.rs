@@ -1,12 +1,22 @@
 use std::{sync::Arc, time::Duration};
 
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
-use axum::{http::header::AUTHORIZATION, Extension};
+use axum::{
+    http::{
+        header::{AUTHORIZATION, CONTENT_TYPE},
+        Method,
+    },
+    Extension,
+};
 use dotenvy::dotenv;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tower_http::{
-    catch_panic::CatchPanicLayer, compression::CompressionLayer,
-    sensitive_headers::SetSensitiveHeadersLayer, timeout::TimeoutLayer, trace::TraceLayer,
+    catch_panic::CatchPanicLayer,
+    compression::CompressionLayer,
+    cors::{Any, CorsLayer},
+    sensitive_headers::SetSensitiveHeadersLayer,
+    timeout::TimeoutLayer,
+    trace::TraceLayer,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -51,6 +61,8 @@ async fn main() -> anyhow::Result<()> {
         .merge(http::docs::router())
         // Game routes
         .merge(http::game::router())
+        // User routes
+        .merge(http::user::router())
         .finish_api_with(&mut api, api_docs)
         .layer((
             SetSensitiveHeadersLayer::new([AUTHORIZATION]),
@@ -59,6 +71,10 @@ async fn main() -> anyhow::Result<()> {
             TimeoutLayer::new(Duration::from_secs(30)),
             CatchPanicLayer::new(),
             Extension(Arc::new(api)),
+            CorsLayer::new()
+                .allow_methods([Method::GET, Method::POST])
+                .allow_headers([CONTENT_TYPE])
+                .allow_origin(Any),
         ))
         .with_state(state);
 

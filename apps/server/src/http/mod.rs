@@ -3,6 +3,7 @@ pub mod docs;
 pub mod error;
 pub mod extractor;
 pub mod game;
+pub mod user;
 
 pub use error::{Error, ResultExt};
 
