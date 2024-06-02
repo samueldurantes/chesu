@@ -6,7 +6,10 @@ use aide::{
     },
     transform::TransformOperation,
 };
-use axum::{extract::State, Json};
+use axum::{
+    extract::{Path, State},
+    Json,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -73,7 +76,10 @@ fn create_game_docs(op: TransformOperation) -> TransformOperation {
         .response::<200, Json<GameBody<Game>>>()
 }
 
-async fn get_game(state: State<crate::State>, game_id: String) -> Result<Json<GameBody<Game>>> {
+async fn get_game(
+    state: State<crate::State>,
+    Path(game_id): Path<String>,
+) -> Result<Json<GameBody<Game>>> {
     let game_id = Uuid::parse_str(&game_id).map_err(|_| Error::BadRequest {
         error: "Invalid game id".to_string(),
     })?;
