@@ -11,7 +11,7 @@ type Move = {
 type Props = {
   fen?: string;
   boardOrientation: 'white' | 'black';
-  onMove: (move: string) => void;
+  onMove?: (move: string) => void;
 };
 
 const Board = (props: Props) => {

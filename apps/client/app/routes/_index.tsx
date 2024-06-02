@@ -9,6 +9,7 @@ import { Form, useLoaderData } from '@remix-run/react';
 import api from '../adapters/api';
 import Board from '../components/board';
 import { Button } from '../components/ui/button';
+import { getSession } from '../utils/createSession';
 
 export const meta: MetaFunction = () => {
   return [
@@ -20,8 +21,24 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { data, error } = await (await api.authorized(request)).GET('/user/me');
+export const loader = async ({
+  request,
+}: LoaderFunctionArgs): Promise<{
+  user?: {
+    username: string;
+  };
+}> => {
+  const session = await getSession(request.headers.get('Cookie'));
+
+  if (!session.data.token) {
+    return {};
+  }
+
+  const { data, error } = await api.GET('/user/me', {
+    headers: {
+      Authorization: session.data.token,
+    },
+  });
 
   if (error) {
     return {};
@@ -35,9 +52,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { data, error } = await (
-    await api.authorized(request)
-  ).POST('/game/create', {
+  const session = await getSession(request.headers.get('Cookie'));
+
+  if (!session.data.token) {
+    return {};
+  }
+
+  const { data, error } = await api.POST('/game/create', {
+    headers: {
+      Authorization: session.data.token,
+    },
     body: {
       game: {
         bet_value: 0,
@@ -58,11 +82,11 @@ const Index = () => {
   const data = useLoaderData<typeof loader>();
 
   const getName = () => {
-    if (!data?.user) {
+    if (!data.user) {
       return 'Opponent';
     }
 
-    return data?.user?.username;
+    return data.user.username;
   };
 
   return (

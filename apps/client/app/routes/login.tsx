@@ -60,7 +60,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const { email, password } = formData;
 
-  const { data, error } = await api.unauthorized.POST('/auth/login', {
+  const { data, error } = await api.POST('/auth/login', {
     body: {
       user: {
         email: email.toString(),
