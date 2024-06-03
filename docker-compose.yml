@@ -1,0 +1,26 @@
+version: '3.9'
+services:
+  app-todo-list:
+    container_name: chesu
+    environment:
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_HOST=db
+      - DB_PORT=5432
+    build: .
+    ports:
+      - 8080:8080
+    restart: on-failure
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      - 5434:5432

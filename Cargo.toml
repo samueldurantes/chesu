@@ -1,5 +1,6 @@
 [workspace]
 members = [
   "./apps/server",
+  "apps/generator",
 ]
 resolver = "2"
