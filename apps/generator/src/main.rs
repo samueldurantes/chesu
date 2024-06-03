@@ -12,5 +12,5 @@ fn main() {
 
     std::fs::write(path, json).unwrap();
 
-    println!("OpenAPI schema generated successfully!")
+    println!("OpenAPI schema generated successfully!");
 }
