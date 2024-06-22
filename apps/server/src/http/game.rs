@@ -1,4 +1,4 @@
-use crate::http::{error::Error, extractor::AuthUser, Result};
+use crate::{http::{error::Error, extractor::AuthUser, Result}, RoomState};
 use aide::{
     axum::{
         routing::{get_with, post_with},
@@ -14,10 +14,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub(crate) fn router() -> ApiRouter<crate::State> {
+pub(crate) fn router() -> ApiRouter<crate::AppState> {
     ApiRouter::new()
         .api_route("/game/create", post_with(create_game, create_game_docs))
         .api_route("/game/:id", get_with(get_game, get_game_docs))
+        .api_route("/game/:id", post_with(join_game, join_game_docs))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -41,7 +42,7 @@ struct Game {
 
 async fn create_game(
     auth_user: AuthUser,
-    state: State<crate::State>,
+    state: State<crate::AppState>,
     payload: Json<GameBody<CreateGame>>,
 ) -> Result<Json<GameBody<Game>>> {
     let game = sqlx::query_scalar!(
@@ -55,15 +56,24 @@ async fn create_game(
     .await?;
 
     match game {
-        Some(game_id) => Ok(Json(GameBody {
-            game: Game {
-                id: game_id,
-                white_player: auth_user.user_id,
-                black_player: None,
-                bet_value: payload.game.bet_value,
-                moves: vec![],
-            },
-        })),
+        Some(game_id) => {
+            let mut rooms = state.rooms.as_ref().lock().unwrap();
+            let new_room = rooms.insert(game_id.to_string(), RoomState::new());
+
+            if let Some(room) = new_room {
+                room.players.lock().unwrap().insert(auth_user.user_id.to_string());
+            }
+
+            Ok(Json(GameBody {
+                game: Game {
+                    id: game_id,
+                    white_player: auth_user.user_id,
+                    black_player: None,
+                    bet_value: payload.game.bet_value,
+                    moves: vec![],
+                },
+            }))
+        },
         None => Err(Error::BadRequest {
             error: "Error when creating game".to_string(),
         }),
@@ -76,8 +86,79 @@ fn create_game_docs(op: TransformOperation) -> TransformOperation {
         .response::<200, Json<GameBody<Game>>>()
 }
 
+async fn join_game(
+    auth_user: AuthUser,
+    state: State<crate::AppState>,
+    Path(game_id): Path<String>,
+) -> Result<Json<GameBody<Game>>> {
+    let game_id = Uuid::parse_str(&game_id).map_err(|_| Error::BadRequest {
+        error: "Invalid game id".to_string(),
+    })?;
+
+    let game = sqlx::query_as!(
+        Game,
+        r#"
+            SELECT id, white_player, black_player, bet_value, moves
+            FROM games
+            WHERE id = $1
+        "#,
+        game_id,
+    )
+    .fetch_optional(&state.db)
+    .await?;
+
+    match game {
+        Some(game) => {
+            if game.black_player.is_some() {
+                return Err(Error::BadRequest {
+                    error: "Game is full".to_string(),
+                });
+            }
+
+            let game = sqlx::query_as!(
+                Game,
+                r#"
+                    UPDATE games
+                    SET black_player = $1
+                    WHERE id = $2
+                    RETURNING id, white_player, black_player, bet_value, moves
+                "#,
+                auth_user.user_id,
+                game_id,
+            )
+            .fetch_one(&state.db)
+            .await?;
+
+            let mut rooms = state.rooms.as_ref().lock().unwrap();
+
+            if let Some(room) = rooms.get_mut(&game_id.to_string()) {
+                let mut room_players = room.players.lock().unwrap();
+
+                if room_players.len() > 2 {
+                    return Err(Error::BadRequest {
+                        error: "Game is full".to_string(),
+                    });
+                }
+
+                room_players.insert(auth_user.user_id.to_string());
+            }
+
+            Ok(Json(GameBody { game }))
+        },
+        None => Err(Error::NotFound {
+            error: "Game not found".to_string(),
+        }),
+    }
+}
+
+fn join_game_docs(op: TransformOperation) -> TransformOperation {
+    op.tag("Game")
+        .description("Join a game")
+        .response::<200, Json<GameBody<Game>>>()
+}
+
 async fn get_game(
-    state: State<crate::State>,
+    state: State<crate::AppState>,
     Path(game_id): Path<String>,
 ) -> Result<Json<GameBody<Game>>> {
     let game_id = Uuid::parse_str(&game_id).map_err(|_| Error::BadRequest {

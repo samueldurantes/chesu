@@ -1,4 +1,4 @@
-use crate::{http::error::Error, State};
+use crate::{http::error::Error, AppState};
 use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},
@@ -51,7 +51,7 @@ impl AuthUser {
 impl<S> FromRequestParts<S> for AuthUser
 where
     S: Send + Sync,
-    State: FromRef<S>,
+    AppState: FromRef<S>,
 {
     type Rejection = Error;
 

@@ -11,7 +11,7 @@ use aide::{
 };
 use axum::{Extension, Json};
 
-pub(crate) fn router() -> ApiRouter<crate::State> {
+pub(crate) fn router() -> ApiRouter<crate::AppState> {
     aide::gen::infer_responses(true);
 
     let router = ApiRouter::new()

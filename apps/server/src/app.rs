@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use crate::{http, State};
+use crate::{http, AppState};
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
 use axum::{
     http::{
@@ -18,7 +18,7 @@ use tower_http::{
     trace::TraceLayer,
 };
 
-pub fn make_app() -> (Router<State>, OpenApi) {
+pub fn make_app() -> (Router<AppState>, OpenApi) {
     aide::gen::on_error(|error| {
         println!("{error}");
     });

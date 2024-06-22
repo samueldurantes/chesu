@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-pub(crate) fn router() -> ApiRouter<crate::State> {
+pub(crate) fn router() -> ApiRouter<crate::AppState> {
     ApiRouter::new()
         .api_route("/auth/register", post_with(register, register_docs))
         .api_route("/auth/login", post_with(login, login_docs))
@@ -46,7 +46,7 @@ struct User {
 }
 
 async fn register(
-    state: State<crate::State>,
+    state: State<crate::AppState>,
     Json(payload): Json<UserBody<RegisterUser>>,
 ) -> Result<Json<UserBody<User>>> {
     if let Some(error) = validate_user_payload(&payload) {
@@ -99,7 +99,7 @@ fn register_docs(op: TransformOperation) -> TransformOperation {
 }
 
 async fn login(
-    state: State<crate::State>,
+    state: State<crate::AppState>,
     Json(payload): Json<UserBody<LoginUser>>,
 ) -> Result<Json<UserBody<User>>> {
     if let Some(error) = validate_user_payload(&payload) {

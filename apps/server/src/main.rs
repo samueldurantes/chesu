@@ -1,7 +1,20 @@
+use axum::{
+    extract::{
+        ws::{WebSocket, WebSocketUpgrade},
+        State,
+    },
+    response::IntoResponse,
+    routing::get,
+};
 use dotenvy::dotenv;
-use server::State;
+use server::AppState;
 use sqlx::postgres::PgPoolOptions;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use futures::stream::StreamExt;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -21,14 +34,29 @@ async fn main() -> anyhow::Result<()> {
 
     sqlx::migrate!().run(&db).await?;
 
-    let state = State { db };
+    let state = AppState {
+        db,
+        rooms: Arc::new(Mutex::new(HashMap::new())),
+    };
 
     let (app, _) = server::app::make_app();
-    let app = app.with_state(state);
+    let app = app.route("/ws", get(handler)).with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("::1:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 
     Ok(())
+}
+
+async fn handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> impl IntoResponse {
+    ws.on_upgrade(|socket| handle_socket(socket, state))
+}
+
+async fn handle_socket(socket: WebSocket, _: AppState) {
+    let (_, mut receiver) = socket.split();
+
+    while let Some(Ok(msg)) = receiver.next().await {
+        dbg!(msg);
+    }
 }

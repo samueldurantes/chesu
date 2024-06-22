@@ -7,7 +7,7 @@ use axum::{extract::State, Json};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub(crate) fn router() -> ApiRouter<crate::State> {
+pub(crate) fn router() -> ApiRouter<crate::AppState> {
     ApiRouter::new().api_route("/user/me", get_with(me, me_docs))
 }
 
@@ -23,7 +23,7 @@ struct User {
     email: String,
 }
 
-async fn me(auth_user: AuthUser, state: State<crate::State>) -> Result<Json<UserBody<User>>> {
+async fn me(auth_user: AuthUser, state: State<crate::AppState>) -> Result<Json<UserBody<User>>> {
     let user = sqlx::query_as!(
         User,
         r#"
