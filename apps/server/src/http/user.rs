@@ -7,6 +7,8 @@ use axum::{extract::State, Json};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use super::error::GenericError;
+
 pub(crate) fn router() -> ApiRouter<crate::AppState> {
     ApiRouter::new().api_route("/user/me", get_with(me, me_docs))
 }
@@ -39,7 +41,7 @@ async fn me(auth_user: AuthUser, state: State<crate::AppState>) -> Result<Json<U
     match user {
         Some(user) => Ok(Json(UserBody { user })),
         None => Err(Error::NotFound {
-            error: "User not found".to_string(),
+            message: "User not found".to_string(),
         }),
     }
 }
@@ -48,4 +50,5 @@ fn me_docs(op: TransformOperation) -> TransformOperation {
     op.tag("User")
         .description("Get logged user")
         .response::<200, Json<UserBody<User>>>()
+        .response::<404, Json<GenericError>>()
 }

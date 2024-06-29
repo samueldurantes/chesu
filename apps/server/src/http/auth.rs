@@ -68,8 +68,8 @@ async fn register(
     AppendHeaders<[(HeaderName, String); 1]>,
     Json<UserBody<User>>,
 )> {
-    if let Some(error) = validate_user_payload(&payload) {
-        return Err(Error::BadRequest { error });
+    if let Some(message) = validate_user_payload(&payload) {
+        return Err(Error::BadRequest { message });
     }
 
     let password_hash = hash_password(payload.user.password).await?;
@@ -103,7 +103,7 @@ async fn register(
             if let sqlx::Error::Database(db_err) = &e {
                 if db_err.is_unique_violation() {
                     return Err(Error::BadRequest {
-                        error: "Already exists an user with these credentials".to_string(),
+                        message: "Already exists an user with these credentials".to_string(),
                     });
                 }
             }
@@ -126,8 +126,8 @@ async fn login(
     AppendHeaders<[(HeaderName, String); 1]>,
     Json<UserBody<User>>,
 )> {
-    if let Some(error) = validate_user_payload(&payload) {
-        return Err(Error::BadRequest { error });
+    if let Some(message) = validate_user_payload(&payload) {
+        return Err(Error::BadRequest { message });
     }
 
     let user = sqlx::query!(
@@ -139,7 +139,7 @@ async fn login(
     .fetch_optional(&state.db)
     .await?
     .ok_or_else(|| Error::BadRequest {
-        error: "User not found".to_string(),
+        message: "User not found".to_string(),
     })?;
 
     verify_password(payload.user.password, user.password).await?;
@@ -172,7 +172,7 @@ async fn verify_password(password: String, password_hash: String) -> Result<()> 
         hash.verify_password(&[&Argon2::default()], password)
             .map_err(|e| match e {
                 argon2::password_hash::Error::Password => Error::BadRequest {
-                    error: "Email or password incorrect".to_string(),
+                    message: "Email or password incorrect".to_string(),
                 },
                 _ => anyhow::anyhow!("Failed to verify password hash: {}", e).into(),
             })

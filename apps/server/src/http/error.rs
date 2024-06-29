@@ -2,20 +2,26 @@ use axum::http::header::WWW_AUTHENTICATE;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
+use schemars::JsonSchema;
 use serde_json::json;
 use sqlx::error::DatabaseError;
 use std::borrow::Cow;
 use std::collections::HashMap;
 
+#[derive(JsonSchema)]
+pub struct GenericError {
+    pub message: String,
+}
+
 #[derive(thiserror::Error, Debug, aide::OperationIo)]
 pub enum Error {
     /// Return `400 Bad Request`
     #[error("bad request")]
-    BadRequest { error: String },
+    BadRequest { message: String },
 
     /// Return `401 Unauthorized`
     #[error("authentication required")]
-    Unauthorized { error: String },
+    Unauthorized { message: String },
 
     /// Return `403 Forbidden`
     #[error("user may not perform that action")]
@@ -23,7 +29,7 @@ pub enum Error {
 
     /// Return `404 Not Found`
     #[error("request path not found")]
-    NotFound { error: String },
+    NotFound { message: String },
 
     /// Return `422 Unprocessable Entity`
     #[error("error in the request body")]
@@ -71,12 +77,12 @@ impl Error {
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match &self {
-            Self::BadRequest { error } => {
-                return (self.status_code(), Json(json!({ "error": error }))).into_response()
+            Self::BadRequest { message } => {
+                return (self.status_code(), Json(json!({ "message": message }))).into_response()
             }
 
-            Self::NotFound { error } => {
-                return (self.status_code(), Json(json!({ "error": error }))).into_response()
+            Self::NotFound { message } => {
+                return (self.status_code(), Json(json!({ "message": message }))).into_response()
             }
 
             Self::UnprocessableEntity { errors } => {
@@ -94,11 +100,11 @@ impl IntoResponse for Error {
                     .into_response();
             }
 
-            Self::Unauthorized { error } => {
+            Self::Unauthorized { message } => {
                 return (
                     self.status_code(),
                     [(WWW_AUTHENTICATE, "Token")],
-                    Json(json!({ "error": error })),
+                    Json(json!({ "message": message })),
                 )
                     .into_response();
             }

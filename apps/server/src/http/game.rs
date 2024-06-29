@@ -17,11 +17,18 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use super::error::GenericError;
+
 pub(crate) fn router() -> ApiRouter<crate::AppState> {
     ApiRouter::new()
         .api_route("/game/create", post_with(create_game, create_game_docs))
         .api_route("/game/:id", get_with(get_game, get_game_docs))
         .api_route("/game/:id", post_with(join_game, join_game_docs))
+}
+
+#[derive(Deserialize, JsonSchema)]
+struct GameID {
+    id: String,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -81,7 +88,7 @@ async fn create_game(
             }))
         }
         None => Err(Error::BadRequest {
-            error: "Error when creating game".to_string(),
+            message: "Error when creating game".to_string(),
         }),
     }
 }
@@ -90,15 +97,16 @@ fn create_game_docs(op: TransformOperation) -> TransformOperation {
     op.tag("Game")
         .description("Create a game")
         .response::<200, Json<GameBody<Game>>>()
+        .response::<400, Json<GenericError>>()
 }
 
 async fn join_game(
     auth_user: AuthUser,
     state: State<crate::AppState>,
-    Path(game_id): Path<String>,
+    Path(GameID { id: game_id }): Path<GameID>,
 ) -> Result<Json<GameBody<Game>>> {
     let game_id = Uuid::parse_str(&game_id).map_err(|_| Error::BadRequest {
-        error: "Invalid game id".to_string(),
+        message: "Invalid game id".to_string(),
     })?;
 
     let game = sqlx::query_as!(
@@ -117,7 +125,7 @@ async fn join_game(
         Some(game) => {
             if game.black_player.is_some() {
                 return Err(Error::BadRequest {
-                    error: "Game is full".to_string(),
+                    message: "Game is full".to_string(),
                 });
             }
 
@@ -142,7 +150,7 @@ async fn join_game(
 
                 if room_players.len() > 2 {
                     return Err(Error::BadRequest {
-                        error: "Game is full".to_string(),
+                        message: "Game is full".to_string(),
                     });
                 }
 
@@ -152,7 +160,7 @@ async fn join_game(
             Ok(Json(GameBody { game }))
         }
         None => Err(Error::NotFound {
-            error: "Game not found".to_string(),
+            message: "Game not found".to_string(),
         }),
     }
 }
@@ -161,14 +169,16 @@ fn join_game_docs(op: TransformOperation) -> TransformOperation {
     op.tag("Game")
         .description("Join a game")
         .response::<200, Json<GameBody<Game>>>()
+        .response::<400, Json<GenericError>>()
+        .response::<404, Json<GenericError>>()
 }
 
 async fn get_game(
     state: State<crate::AppState>,
-    Path(game_id): Path<String>,
+    Path(GameID { id: game_id }): Path<GameID>,
 ) -> Result<Json<GameBody<Game>>> {
     let game_id = Uuid::parse_str(&game_id).map_err(|_| Error::BadRequest {
-        error: "Invalid game id".to_string(),
+        message: "Invalid game ID".to_string(),
     })?;
 
     let game = sqlx::query_as!(
@@ -186,7 +196,7 @@ async fn get_game(
     match game {
         Some(game) => Ok(Json(GameBody { game })),
         None => Err(Error::NotFound {
-            error: "Game not found".to_string(),
+            message: "Game not found".to_string(),
         }),
     }
 }
@@ -195,4 +205,6 @@ fn get_game_docs(op: TransformOperation) -> TransformOperation {
     op.tag("Game")
         .description("Get a game")
         .response::<200, Json<GameBody<Game>>>()
+        .response::<400, Json<GenericError>>()
+        .response::<404, Json<GenericError>>()
 }

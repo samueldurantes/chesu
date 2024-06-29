@@ -45,7 +45,7 @@ impl AuthUser {
                 user_id: claims.custom.user_id,
             }),
             Err(_) => Err(Error::Unauthorized {
-                error: "Not authorized".to_string(),
+                message: "Not authorized".to_string(),
             }),
         }
     }
@@ -65,11 +65,11 @@ where
                 .extract::<TypedHeader<Cookie>>()
                 .await
                 .map_err(|_| Error::Unauthorized {
-                    error: "Not authorized".to_string(),
+                    message: "Not authorized".to_string(),
                 })?;
 
         let token = cookies.get(COOKIE_NAME).ok_or(Error::Unauthorized {
-            error: "Not authorized".to_string(),
+            message: "Not authorized".to_string(),
         })?;
 
         Self::from_jwt(token)
