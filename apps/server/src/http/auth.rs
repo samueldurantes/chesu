@@ -5,7 +5,12 @@ use aide::{
 };
 use anyhow::Context;
 use argon2::{password_hash::SaltString, Argon2, PasswordHash};
-use axum::{extract::State, Json};
+use axum::{
+    extract::State,
+    http::{header::SET_COOKIE, HeaderName},
+    response::AppendHeaders,
+    Json,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -42,13 +47,19 @@ struct User {
     id: String,
     username: String,
     email: String,
-    token: String,
+}
+
+fn mount_set_cookie(token: String) -> String {
+    format!("CHESU_TOKEN={}", token)
 }
 
 async fn register(
     state: State<crate::AppState>,
     Json(payload): Json<UserBody<RegisterUser>>,
-) -> Result<Json<UserBody<User>>> {
+) -> Result<(
+    AppendHeaders<[(HeaderName, String); 1]>,
+    Json<UserBody<User>>,
+)> {
     if let Some(error) = validate_user_payload(&payload) {
         return Err(Error::BadRequest { error });
     }
@@ -69,14 +80,16 @@ async fn register(
         Ok(user_id) => {
             let token = AuthUser { user_id }.to_jwt();
 
-            Ok(Json(UserBody {
-                user: User {
-                    id: user_id.to_string(),
-                    username: payload.user.username,
-                    email: payload.user.email,
-                    token,
-                },
-            }))
+            Ok((
+                AppendHeaders([(SET_COOKIE, mount_set_cookie(token))]),
+                Json(UserBody {
+                    user: User {
+                        id: user_id.to_string(),
+                        username: payload.user.username,
+                        email: payload.user.email,
+                    },
+                }),
+            ))
         }
         Err(e) => {
             if let sqlx::Error::Database(db_err) = &e {
@@ -101,7 +114,10 @@ fn register_docs(op: TransformOperation) -> TransformOperation {
 async fn login(
     state: State<crate::AppState>,
     Json(payload): Json<UserBody<LoginUser>>,
-) -> Result<Json<UserBody<User>>> {
+) -> Result<(
+    AppendHeaders<[(HeaderName, String); 1]>,
+    Json<UserBody<User>>,
+)> {
     if let Some(error) = validate_user_payload(&payload) {
         return Err(Error::BadRequest { error });
     }
@@ -122,14 +138,16 @@ async fn login(
 
     let token = AuthUser { user_id: user.id }.to_jwt();
 
-    Ok(Json(UserBody {
-        user: User {
-            id: user.id.to_string(),
-            username: user.username,
-            email: user.email,
-            token,
-        },
-    }))
+    Ok((
+        AppendHeaders([(SET_COOKIE, mount_set_cookie(token))]),
+        Json(UserBody {
+            user: User {
+                id: user.id.to_string(),
+                username: user.username,
+                email: user.email,
+            },
+        }),
+    ))
 }
 
 fn login_docs(op: TransformOperation) -> TransformOperation {

@@ -7,6 +7,7 @@ use axum::{
     routing::get,
 };
 use dotenvy::dotenv;
+use futures::stream::StreamExt;
 use server::AppState;
 use sqlx::postgres::PgPoolOptions;
 use std::{
@@ -14,7 +15,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use futures::stream::StreamExt;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -42,7 +42,9 @@ async fn main() -> anyhow::Result<()> {
     let (app, _) = server::app::make_app();
     let app = app.route("/ws", get(handler)).with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+        .await
+        .unwrap();
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 

@@ -1,4 +1,7 @@
-use crate::{http::{error::Error, extractor::AuthUser, Result}, RoomState};
+use crate::{
+    http::{error::Error, extractor::AuthUser, Result},
+    RoomState,
+};
 use aide::{
     axum::{
         routing::{get_with, post_with},
@@ -61,7 +64,10 @@ async fn create_game(
             let new_room = rooms.insert(game_id.to_string(), RoomState::new());
 
             if let Some(room) = new_room {
-                room.players.lock().unwrap().insert(auth_user.user_id.to_string());
+                room.players
+                    .lock()
+                    .unwrap()
+                    .insert(auth_user.user_id.to_string());
             }
 
             Ok(Json(GameBody {
@@ -73,7 +79,7 @@ async fn create_game(
                     moves: vec![],
                 },
             }))
-        },
+        }
         None => Err(Error::BadRequest {
             error: "Error when creating game".to_string(),
         }),
@@ -144,7 +150,7 @@ async fn join_game(
             }
 
             Ok(Json(GameBody { game }))
-        },
+        }
         None => Err(Error::NotFound {
             error: "Game not found".to_string(),
         }),
