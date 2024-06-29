@@ -1,12 +1,16 @@
 use crate::{http::error::Error, AppState};
+use axum::RequestPartsExt;
 use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},
-    http::{header::AUTHORIZATION, request::Parts},
+    http::request::Parts,
 };
+use axum_extra::{headers::Cookie, TypedHeader};
 use jwt_simple::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+pub(crate) static COOKIE_NAME: &str = "CHESU_TOKEN";
 
 #[derive(aide::OperationIo)]
 pub struct AuthUser {
@@ -56,14 +60,15 @@ where
     type Rejection = Error;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        let auth_header = parts
-            .headers
-            .get(AUTHORIZATION)
-            .ok_or(Error::Unauthorized {
-                error: "Not authorized".to_string(),
-            })?;
+        let cookies =
+            parts
+                .extract::<TypedHeader<Cookie>>()
+                .await
+                .map_err(|_| Error::Unauthorized {
+                    error: "Not authorized".to_string(),
+                })?;
 
-        let token = auth_header.to_str().map_err(|_| Error::Unauthorized {
+        let token = cookies.get(COOKIE_NAME).ok_or(Error::Unauthorized {
             error: "Not authorized".to_string(),
         })?;
 

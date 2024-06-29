@@ -11,9 +11,12 @@ use axum::{
     response::AppendHeaders,
     Json,
 };
+use axum_extra::extract::cookie::Cookie;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
+
+use super::extractor::COOKIE_NAME;
 
 pub(crate) fn router() -> ApiRouter<crate::AppState> {
     ApiRouter::new()
@@ -49,8 +52,13 @@ struct User {
     email: String,
 }
 
-fn mount_set_cookie(token: String) -> String {
-    format!("CHESU_TOKEN={}", token)
+fn build_set_cookie(token: String) -> String {
+    let cookie = Cookie::build((COOKIE_NAME, token))
+        .path("/")
+        .secure(true)
+        .http_only(true);
+
+    cookie.to_string()
 }
 
 async fn register(
@@ -81,7 +89,7 @@ async fn register(
             let token = AuthUser { user_id }.to_jwt();
 
             Ok((
-                AppendHeaders([(SET_COOKIE, mount_set_cookie(token))]),
+                AppendHeaders([(SET_COOKIE, build_set_cookie(token))]),
                 Json(UserBody {
                     user: User {
                         id: user_id.to_string(),
@@ -139,7 +147,7 @@ async fn login(
     let token = AuthUser { user_id: user.id }.to_jwt();
 
     Ok((
-        AppendHeaders([(SET_COOKIE, mount_set_cookie(token))]),
+        AppendHeaders([(SET_COOKIE, build_set_cookie(token))]),
         Json(UserBody {
             user: User {
                 id: user.id.to_string(),
