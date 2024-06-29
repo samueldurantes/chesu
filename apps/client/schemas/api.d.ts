@@ -60,26 +60,61 @@ export interface paths {
             "application/json": components["schemas"]["GameBody_for_Game"];
           };
         };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
       };
     };
   };
   "/game/{id}": {
     /** @description Get a game */
     get: {
+      parameters: {
+        path: {
+          id: string;
+        };
+      };
       responses: {
         200: {
           content: {
             "application/json": components["schemas"]["GameBody_for_Game"];
           };
         };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
+        404: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
       };
     };
     /** @description Join a game */
     post: {
+      parameters: {
+        path: {
+          id: string;
+        };
+      };
       responses: {
         200: {
           content: {
             "application/json": components["schemas"]["GameBody_for_Game"];
+          };
+        };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
+        404: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
           };
         };
       };
@@ -92,6 +127,11 @@ export interface paths {
         200: {
           content: {
             "application/json": components["schemas"]["UserBody_for_User2"];
+          };
+        };
+        404: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
           };
         };
       };
@@ -220,6 +260,12 @@ export interface components {
     };
     GameBody_for_Game: {
       game: components["schemas"]["Game"];
+    };
+    GameID: {
+      id: string;
+    };
+    GenericError: {
+      message: string;
     };
     /**
      * @description The Header Object follows the structure of the Parameter Object with the following changes:
@@ -1056,7 +1102,6 @@ export interface components {
     User: {
       email: string;
       id: string;
-      token: string;
       username: string;
     };
     User2: {

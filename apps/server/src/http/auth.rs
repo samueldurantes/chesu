@@ -16,7 +16,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use super::extractor::COOKIE_NAME;
+use super::{error::GenericError, extractor::COOKIE_NAME};
 
 pub(crate) fn router() -> ApiRouter<crate::AppState> {
     ApiRouter::new()
@@ -117,6 +117,8 @@ fn register_docs(op: TransformOperation) -> TransformOperation {
     op.tag("Auth")
         .description("Register an user")
         .response::<200, Json<UserBody<User>>>()
+        .response::<400, Json<GenericError>>()
+        .response::<500, Json<GenericError>>()
 }
 
 async fn login(
@@ -139,7 +141,7 @@ async fn login(
     .fetch_optional(&state.db)
     .await?
     .ok_or_else(|| Error::BadRequest {
-        message: "User not found".to_string(),
+        message: "Email and/or password incorrect".to_string(),
     })?;
 
     verify_password(payload.user.password, user.password).await?;
@@ -162,6 +164,7 @@ fn login_docs(op: TransformOperation) -> TransformOperation {
     op.tag("Auth")
         .description("Login an user")
         .response::<200, Json<UserBody<User>>>()
+        .response::<400, Json<GenericError>>()
 }
 
 async fn verify_password(password: String, password_hash: String) -> Result<()> {
@@ -172,7 +175,7 @@ async fn verify_password(password: String, password_hash: String) -> Result<()> 
         hash.verify_password(&[&Argon2::default()], password)
             .map_err(|e| match e {
                 argon2::password_hash::Error::Password => Error::BadRequest {
-                    message: "Email or password incorrect".to_string(),
+                    message: "Email and/or password incorrect".to_string(),
                 },
                 _ => anyhow::anyhow!("Failed to verify password hash: {}", e).into(),
             })
