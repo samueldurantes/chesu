@@ -1,15 +1,13 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from '@tanstack/react-query';
 
-import api from "../../api/api";
+import api from '../../api/api';
 
 const AuthLayout = () => {
-  const { data: query } = useQuery({
-    queryKey: ["authLayout"],
+  const { data: query } = useSuspenseQuery({
+    queryKey: ['auth'],
     queryFn: async () => await api.GET('/user/me'),
-    networkMode: "always",
-    // @ts-ignore
-    suspense: true,
+    networkMode: 'always',
   });
 
   const user = query?.data?.user;
@@ -26,4 +24,3 @@ const AuthLayout = () => {
 };
 
 export default AuthLayout;
-
