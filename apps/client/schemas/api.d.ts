@@ -74,6 +74,16 @@ export interface paths {
         };
       };
     };
+    /** @description Join a game */
+    post: {
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["GameBody_for_Game"];
+          };
+        };
+      };
+    };
   };
   "/user/me": {
     /** @description Get logged user */

@@ -1,6 +1,5 @@
-import { useState } from 'react';
-import { Chessboard } from 'react-chessboard';
 import { Chess, Square } from 'chess.js';
+import { Chessboard } from 'react-chessboard';
 
 type Move = {
   from: string;
@@ -14,7 +13,7 @@ type Props = {
   onMove?: (move: string) => void;
 };
 
-const Board = (props: Props) => {
+export const Board = (props: Props) => {
   const playMove = (move: string | Move) => {
     const gameCopy = new Chess(props.fen);
     const result = gameCopy.move(move).san;
@@ -45,4 +44,3 @@ const Board = (props: Props) => {
   );
 };
 
-export default Board;
