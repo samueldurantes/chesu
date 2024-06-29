@@ -22,9 +22,6 @@ importers:
       '@radix-ui/react-slot':
         specifier: ^1.1.0
         version: 1.1.0(@types/react@18.3.3)(react@18.3.1)
-      '@suspensive/react-query':
-        specifier: ^2.3.1
-        version: 2.3.1(@tanstack/react-query@5.49.0)(react@18.3.1)
       '@tanstack/react-query':
         specifier: ^5.48.0
         version: 5.49.0(react@18.3.1)
@@ -355,14 +352,6 @@ packages:
       '@babel/helper-validator-identifier': 7.24.7
       to-fast-properties: 2.0.0
     dev: true
-
-  /@commander-js/extra-typings@12.1.0(commander@12.1.0):
-    resolution: {integrity: sha512-wf/lwQvWAA0goIghcb91dQYpkLBcyhOhQNqG/VgWhnKzgt+UOMvra7EX/2fv70arm5RW+PUHoQHHDa6/p77Eqg==}
-    peerDependencies:
-      commander: ~12.1.0
-    dependencies:
-      commander: 12.1.0
-    dev: false
 
   /@esbuild/aix-ppc64@0.21.5:
     resolution: {integrity: sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==}
@@ -1079,54 +1068,6 @@ packages:
     dev: true
     optional: true
 
-  /@suspensive/react-query-4@2.3.1(@tanstack/react-query@5.49.0)(react@18.3.1):
-    resolution: {integrity: sha512-2EL/kfDbj9ldw+9dpNSG6YDGBcmyhd5aRSpRQPEBlAbCfeFmlIje0Wld0uM8rBGBp99p0KGqRJRPrPmTnU8x4w==}
-    peerDependencies:
-      '@suspensive/react': ^2.3.12.3.1
-      '@tanstack/react-query': ^4
-      react: ^18
-    peerDependenciesMeta:
-      '@suspensive/react':
-        optional: true
-    dependencies:
-      '@tanstack/react-query': 5.49.0(react@18.3.1)
-      react: 18.3.1
-    dev: false
-
-  /@suspensive/react-query-5@2.3.1(@tanstack/react-query@5.49.0)(react@18.3.1):
-    resolution: {integrity: sha512-Dq1H87nvYVWv7H4cBgwcy4HavVXiADcyGJpgs+RMdll18qnLnypobl1qkimqR8rlffB0/pR6fmVBfhGxO62uCA==}
-    peerDependencies:
-      '@suspensive/react': ^2.3.12.3.1
-      '@tanstack/react-query': ^5
-      react: ^18
-    peerDependenciesMeta:
-      '@suspensive/react':
-        optional: true
-    dependencies:
-      '@tanstack/react-query': 5.49.0(react@18.3.1)
-      react: 18.3.1
-    dev: false
-
-  /@suspensive/react-query@2.3.1(@tanstack/react-query@5.49.0)(react@18.3.1):
-    resolution: {integrity: sha512-dtrH7AGrL2Nscqaw3/rice8d6PeLt061zT79pKj/GYa2EQFfL9WCd6irWdtPBeRY6IBBbphvlBdhNWSEbmDQpQ==}
-    hasBin: true
-    requiresBuild: true
-    peerDependencies:
-      '@suspensive/react': ^2.3.12.3.1
-      '@tanstack/react-query': ^4 || ^5
-      react: ^18
-    peerDependenciesMeta:
-      '@suspensive/react':
-        optional: true
-    dependencies:
-      '@commander-js/extra-typings': 12.1.0(commander@12.1.0)
-      '@suspensive/react-query-4': 2.3.1(@tanstack/react-query@5.49.0)(react@18.3.1)
-      '@suspensive/react-query-5': 2.3.1(@tanstack/react-query@5.49.0)(react@18.3.1)
-      '@tanstack/react-query': 5.49.0(react@18.3.1)
-      commander: 12.1.0
-      react: 18.3.1
-    dev: false
-
   /@tanstack/query-core@5.49.0:
     resolution: {integrity: sha512-xUTjCPHC8G+ZvIUzjoMOLnMpNXYPQI4HjhlizTVVBwtSp24iWo4/kaBzHAzsrCVyfbiaPIFFkUvicsY4r8kF8A==}
     dev: false
@@ -1565,11 +1506,6 @@ packages:
   /color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
     dev: true
-
-  /commander@12.1.0:
-    resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
-    engines: {node: '>=18'}
-    dev: false
 
   /commander@4.1.1:
     resolution: {integrity: sha512-NOKm8xhkzAjzFx8B2v5OAHT+u5pRQc2UCa2Vq9jYL/31o2wi9mxBA7LIFs3sV5VSC49z6pEhfbMULvShKj26WA==}
