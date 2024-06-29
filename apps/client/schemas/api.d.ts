@@ -24,6 +24,16 @@ export interface paths {
             "application/json": components["schemas"]["UserBody_for_User"];
           };
         };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
+        500: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
       };
     };
   };
@@ -39,6 +49,11 @@ export interface paths {
         200: {
           content: {
             "application/json": components["schemas"]["UserBody_for_User"];
+          };
+        };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
           };
         };
       };
