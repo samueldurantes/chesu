@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { z, ZodError } from 'zod';
 import { useFormik, FormikProvider } from 'formik';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -11,14 +11,19 @@ import { Button } from '../ui/Button';
 import { useNavigate } from 'react-router-dom';
 
 const schema = z.object({
-  username: z.string().min(2, { message: 'Username must contain at least 2 characters' }),
+  username: z
+    .string()
+    .min(2, { message: 'Username must contain at least 2 characters' }),
   email: z.string().email(),
-  password: z.string().min(8, { message: 'Password must contain at least 8 characters' }),
+  password: z
+    .string()
+    .min(8, { message: 'Password must contain at least 8 characters' }),
 });
 
 type Values = z.infer<typeof schema>;
 
 const Register = () => {
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const validate = (values: Values) => {
@@ -32,7 +37,7 @@ const Register = () => {
   };
 
   const { data: query } = useQuery({
-    queryKey: ['auth/register'],
+    queryKey: ['auth'],
     queryFn: () => api.GET('/user/me'),
   });
 
@@ -46,21 +51,24 @@ const Register = () => {
     redirectIfNotAuthenticated();
   });
 
-  const { mutateAsync } = useMutation({
-    mutationFn: async (data: Values) => {
-      const response = await api.POST('/auth/register', {
+  const { mutateAsync: mutate } = useMutation({
+    mutationFn: async (user: Values) => {
+      const { data, error } = await api.POST('/auth/register', {
         body: {
-          user: {
-            username: data.username,
-            email: data.email,
-            password: data.password,
-          },
+          user,
         },
       });
 
-      return response.data;
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return {
+        data,
+      };
     },
     onSuccess: () => navigate('/'),
+    onError: (error) => setError(error.message),
   });
 
   const formikbag = useFormik({
@@ -71,7 +79,7 @@ const Register = () => {
     },
     validate,
     onSubmit: (values: Values) => {
-      mutateAsync(values);
+      mutate(values);
     },
   });
 
@@ -81,11 +89,16 @@ const Register = () => {
     <div className="h-screen flex items-center justify-center bg-[#121212] px-6">
       <Card className="bg-[#1e1e1e] max-w-screen-sm w-full">
         <CardHeader className="text-white gap-5">
+          {error ? (
+            <div className="w-full bg-red-500 p-3 rounded">
+              <p>{error}</p>
+            </div>
+          ) : null}
           <CardTitle>Register</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <FormikProvider value={formikbag} >
+            <FormikProvider value={formikbag}>
               <div className="space-y-2">
                 <Label className="text-white" htmlFor="username">
                   Username

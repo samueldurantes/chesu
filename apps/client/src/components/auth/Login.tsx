@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { z, ZodError } from 'zod';
 import { useFormik, FormikProvider } from 'formik';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -18,6 +18,7 @@ const schema = z.object({
 type Values = z.infer<typeof schema>;
 
 const Login = () => {
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const validate = (values: Values) => {
@@ -31,7 +32,7 @@ const Login = () => {
   };
 
   const { data: query } = useQuery({
-    queryKey: ['auth/login'],
+    queryKey: ['auth'],
     queryFn: () => api.GET('/user/me'),
   });
 
@@ -46,19 +47,23 @@ const Login = () => {
   });
 
   const { mutateAsync } = useMutation({
-    mutationFn: async (data: Values) => {
-      const response = await api.POST('/auth/login', {
+    mutationFn: async (user: Values) => {
+      const { data, error } = await api.POST('/auth/login', {
         body: {
-          user: {
-            email: data.email,
-            password: data.password,
-          },
+          user,
         },
       });
 
-      return response.data;
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return {
+        data,
+      };
     },
     onSuccess: () => navigate('/'),
+    onError: (error) => setError(error.message),
   });
 
   const formikbag = useFormik({
@@ -78,11 +83,16 @@ const Login = () => {
     <div className="h-screen flex items-center justify-center bg-[#121212] px-6">
       <Card className="bg-[#1e1e1e] max-w-screen-sm w-full">
         <CardHeader className="text-white gap-5">
+          {error ? (
+            <div className="w-full bg-red-500 p-3 rounded">
+              <p>{error}</p>
+            </div>
+          ) : null}
           <CardTitle>Login</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <FormikProvider value={formikbag} >
+            <FormikProvider value={formikbag}>
               <div className="space-y-2">
                 <Label className="text-white" htmlFor="email">
                   Email
