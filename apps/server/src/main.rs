@@ -1,13 +1,4 @@
-use axum::{
-    extract::{
-        ws::{WebSocket, WebSocketUpgrade},
-        State,
-    },
-    response::IntoResponse,
-    routing::get,
-};
 use dotenvy::dotenv;
-use futures::stream::StreamExt;
 use server::AppState;
 use sqlx::postgres::PgPoolOptions;
 use std::{
@@ -40,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let (app, _) = server::app::make_app();
-    let app = app.route("/ws", get(handler)).with_state(state);
+    let app = app.with_state(state);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
@@ -49,16 +40,4 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app).await.unwrap();
 
     Ok(())
-}
-
-async fn handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> impl IntoResponse {
-    ws.on_upgrade(|socket| handle_socket(socket, state))
-}
-
-async fn handle_socket(socket: WebSocket, _: AppState) {
-    let (_, mut receiver) = socket.split();
-
-    while let Some(Ok(msg)) = receiver.next().await {
-        dbg!(msg);
-    }
 }

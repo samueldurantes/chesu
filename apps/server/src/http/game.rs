@@ -8,13 +8,20 @@ use aide::{
         ApiRouter,
     },
     transform::TransformOperation,
+    NoApi,
 };
 use axum::{
-    extract::{Path, State},
+    extract::{
+        ws::{Message, WebSocket},
+        Path, State, WebSocketUpgrade,
+    },
+    response::IntoResponse,
     Json,
 };
+use futures::{stream::StreamExt, SinkExt};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use super::error::GenericError;
@@ -24,6 +31,7 @@ pub(crate) fn router() -> ApiRouter<crate::AppState> {
         .api_route("/game/create", post_with(create_game, create_game_docs))
         .api_route("/game/:id", get_with(get_game, get_game_docs))
         .api_route("/game/:id", post_with(join_game, join_game_docs))
+        .api_route("/game/ws", get_with(game_ws, game_ws_docs))
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -50,7 +58,7 @@ struct Game {
     moves: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 struct GamePlayer {
     id: Uuid,
     username: String,
@@ -290,4 +298,58 @@ fn get_game_docs(op: TransformOperation) -> TransformOperation {
         .response::<200, Json<GameBody<GameWithPlayers>>>()
         .response::<400, Json<GenericError>>()
         .response::<404, Json<GenericError>>()
+}
+
+async fn game_ws(
+    NoApi(ws): NoApi<WebSocketUpgrade>,
+    State(state): State<crate::AppState>,
+) -> NoApi<impl IntoResponse> {
+    NoApi(ws.on_upgrade(|socket| game_handle_socket(socket, state)))
+}
+
+async fn game_handle_socket(socket: WebSocket, state: crate::AppState) {
+    let (mut sender, mut receiver) = socket.split();
+    let mut tx = None::<broadcast::Sender<String>>;
+
+    while let Some(Ok(msg)) = receiver.next().await {
+        let mut rooms = state.rooms.lock().unwrap();
+
+        tx = match rooms.get_mut(msg.to_text().unwrap()) {
+            Some(room) => Some(room.tx.clone()),
+            None => None,
+        };
+
+        break;
+    }
+
+    let tx = tx.unwrap();
+    let mut rx = tx.subscribe();
+
+    let mut recv_messages = tokio::spawn(async move {
+        while let Ok(msg) = rx.recv().await {
+            sender.send(Message::Text(msg)).await.unwrap();
+        }
+    });
+
+    let mut send_messages = {
+        let tx = tx.clone();
+        tokio::spawn(async move {
+            while let Some(Ok(Message::Text(text))) = receiver.next().await {
+                dbg!(text.clone());
+
+                let _ = tx.send(text);
+            }
+        })
+    };
+
+    tokio::select! {
+        _ = (&mut send_messages) => recv_messages.abort(),
+        _ = (&mut recv_messages) => send_messages.abort(),
+    }
+}
+
+fn game_ws_docs(op: TransformOperation) -> TransformOperation {
+    op.tag("Game")
+        .description("Websocket for game")
+        .hidden(true)
 }
