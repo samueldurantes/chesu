@@ -8,14 +8,26 @@ type Move = {
 };
 
 type Props = {
-  fen?: string;
+  san?: string[];
   boardOrientation: 'white' | 'black';
   onMove?: (move: string) => void;
 };
 
-export const Board = (props: Props) => {
+const sanToFen = (sans: string[]): string => {
+  const chess = new Chess();
+
+  for (const san of sans) {
+    chess.move(san);
+  }
+
+  return chess.fen();
+};
+
+export const Board = ({ san = [], ...props }: Props) => {
+  const fen = sanToFen(san);
+
   const playMove = (move: string | Move) => {
-    const gameCopy = new Chess(props.fen);
+    const gameCopy = new Chess(fen);
     const result = gameCopy.move(move).san;
 
     if (result) {
@@ -38,9 +50,8 @@ export const Board = (props: Props) => {
     <Chessboard
       boardOrientation={props.boardOrientation}
       showPromotionDialog={true}
-      position={props.fen}
+      position={fen}
       onPieceDrop={onDrop}
     />
   );
 };
-
