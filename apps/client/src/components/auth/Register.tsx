@@ -37,7 +37,7 @@ const Register = () => {
   };
 
   const { data: query } = useQuery({
-    queryKey: ['auth'],
+    queryKey: ['user/me'],
     queryFn: () => api.GET('/user/me'),
   });
 

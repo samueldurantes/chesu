@@ -5,7 +5,7 @@ import api from '../../api/api';
 
 const AuthLayout = () => {
   const { data: query } = useSuspenseQuery({
-    queryKey: ['auth'],
+    queryKey: ['user/me'],
     queryFn: async () => await api.GET('/user/me'),
     networkMode: 'always',
   });

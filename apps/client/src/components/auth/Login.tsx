@@ -32,7 +32,7 @@ const Login = () => {
   };
 
   const { data: query } = useQuery({
-    queryKey: ['auth'],
+    queryKey: ['user/me'],
     queryFn: () => api.GET('/user/me'),
   });
 
@@ -46,7 +46,7 @@ const Login = () => {
     redirectIfNotAuthenticated();
   });
 
-  const { mutateAsync } = useMutation({
+  const { mutateAsync: mutate } = useMutation({
     mutationFn: async (user: Values) => {
       const { data, error } = await api.POST('/auth/login', {
         body: {
@@ -58,9 +58,7 @@ const Login = () => {
         throw new Error(error.message);
       }
 
-      return {
-        data,
-      };
+      return data;
     },
     onSuccess: () => navigate('/'),
     onError: (error) => setError(error.message),
@@ -73,7 +71,7 @@ const Login = () => {
     },
     validate,
     onSubmit: (values: Values) => {
-      mutateAsync(values);
+      mutate(values);
     },
   });
 
