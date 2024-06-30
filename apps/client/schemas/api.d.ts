@@ -94,7 +94,7 @@ export interface paths {
       responses: {
         200: {
           content: {
-            "application/json": components["schemas"]["GameBody_for_Game"];
+            "application/json": components["schemas"]["GameBody_for_GameWithPlayers"];
           };
         };
         400: {
@@ -119,7 +119,7 @@ export interface paths {
       responses: {
         200: {
           content: {
-            "application/json": components["schemas"]["GameBody_for_Game"];
+            "application/json": components["schemas"]["GameBody_for_GameWithPlayers"];
           };
         };
         400: {
@@ -276,8 +276,25 @@ export interface components {
     GameBody_for_Game: {
       game: components["schemas"]["Game"];
     };
+    GameBody_for_GameWithPlayers: {
+      game: components["schemas"]["GameWithPlayers"];
+    };
     GameID: {
       id: string;
+    };
+    GamePlayer: {
+      /** Format: uuid */
+      id: string;
+      username: string;
+    };
+    GameWithPlayers: {
+      /** Format: int32 */
+      bet_value: number;
+      black_player?: components["schemas"]["GamePlayer"] | null;
+      /** Format: uuid */
+      id: string;
+      moves: string[];
+      white_player?: components["schemas"]["GamePlayer"] | null;
     };
     GenericError: {
       message: string;

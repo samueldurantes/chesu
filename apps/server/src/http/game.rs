@@ -50,6 +50,21 @@ struct Game {
     moves: Vec<String>,
 }
 
+#[derive(Serialize, Deserialize, JsonSchema)]
+struct GamePlayer {
+    id: Uuid,
+    username: String,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema)]
+struct GameWithPlayers {
+    id: Uuid,
+    white_player: Option<GamePlayer>,
+    black_player: Option<GamePlayer>,
+    bet_value: i32,
+    moves: Vec<String>,
+}
+
 async fn create_game(
     auth_user: AuthUser,
     state: State<crate::AppState>,
@@ -59,6 +74,7 @@ async fn create_game(
         r#"
             INSERT INTO games (white_player, bet_value) VALUES ($1, $2) RETURNING id
         "#,
+        // TODO: Allow the user choose your color
         auth_user.user_id,
         payload.game.bet_value,
     )
@@ -68,14 +84,15 @@ async fn create_game(
     match game {
         Some(game_id) => {
             let mut rooms = state.rooms.as_ref().lock().unwrap();
-            let new_room = rooms.insert(game_id.to_string(), RoomState::new());
+            let new_room = rooms
+                .entry(game_id.to_string())
+                .or_insert_with(RoomState::new);
 
-            if let Some(room) = new_room {
-                room.players
-                    .lock()
-                    .unwrap()
-                    .insert(auth_user.user_id.to_string());
-            }
+            new_room
+                .players
+                .lock()
+                .unwrap()
+                .insert(auth_user.user_id.to_string());
 
             Ok(Json(GameBody {
                 game: Game {
@@ -104,7 +121,7 @@ async fn join_game(
     auth_user: AuthUser,
     state: State<crate::AppState>,
     Path(GameID { id: game_id }): Path<GameID>,
-) -> Result<Json<GameBody<Game>>> {
+) -> Result<Json<GameBody<GameWithPlayers>>> {
     let game_id = Uuid::parse_str(&game_id).map_err(|_| Error::BadRequest {
         message: "Invalid game id".to_string(),
     })?;
@@ -143,6 +160,30 @@ async fn join_game(
             .fetch_one(&state.db)
             .await?;
 
+            let white_player = sqlx::query_as!(
+                GamePlayer,
+                r#"
+                    SELECT id, username
+                    FROM users
+                    WHERE id = $1
+                "#,
+                game.white_player,
+            )
+            .fetch_optional(&state.db)
+            .await?;
+
+            let black_player = sqlx::query_as!(
+                GamePlayer,
+                r#"
+                    SELECT id, username
+                    FROM users
+                    WHERE id = $1
+                "#,
+                game.black_player,
+            )
+            .fetch_optional(&state.db)
+            .await?;
+
             let mut rooms = state.rooms.as_ref().lock().unwrap();
 
             if let Some(room) = rooms.get_mut(&game_id.to_string()) {
@@ -157,7 +198,15 @@ async fn join_game(
                 room_players.insert(auth_user.user_id.to_string());
             }
 
-            Ok(Json(GameBody { game }))
+            Ok(Json(GameBody {
+                game: GameWithPlayers {
+                    id: game.id,
+                    white_player,
+                    black_player,
+                    bet_value: game.bet_value,
+                    moves: game.moves,
+                },
+            }))
         }
         None => Err(Error::NotFound {
             message: "Game not found".to_string(),
@@ -168,7 +217,7 @@ async fn join_game(
 fn join_game_docs(op: TransformOperation) -> TransformOperation {
     op.tag("Game")
         .description("Join a game")
-        .response::<200, Json<GameBody<Game>>>()
+        .response::<200, Json<GameBody<GameWithPlayers>>>()
         .response::<400, Json<GenericError>>()
         .response::<404, Json<GenericError>>()
 }
@@ -176,7 +225,7 @@ fn join_game_docs(op: TransformOperation) -> TransformOperation {
 async fn get_game(
     state: State<crate::AppState>,
     Path(GameID { id: game_id }): Path<GameID>,
-) -> Result<Json<GameBody<Game>>> {
+) -> Result<Json<GameBody<GameWithPlayers>>> {
     let game_id = Uuid::parse_str(&game_id).map_err(|_| Error::BadRequest {
         message: "Invalid game ID".to_string(),
     })?;
@@ -194,7 +243,41 @@ async fn get_game(
     .await?;
 
     match game {
-        Some(game) => Ok(Json(GameBody { game })),
+        Some(game) => {
+            let white_player = sqlx::query_as!(
+                GamePlayer,
+                r#"
+                    SELECT id, username
+                    FROM users
+                    WHERE id = $1
+                "#,
+                game.white_player,
+            )
+            .fetch_optional(&state.db)
+            .await?;
+
+            let black_player = sqlx::query_as!(
+                GamePlayer,
+                r#"
+                    SELECT id, username
+                    FROM users
+                    WHERE id = $1
+                "#,
+                game.black_player,
+            )
+            .fetch_optional(&state.db)
+            .await?;
+
+            Ok(Json(GameBody {
+                game: GameWithPlayers {
+                    id: game.id,
+                    white_player,
+                    black_player,
+                    bet_value: game.bet_value,
+                    moves: game.moves,
+                },
+            }))
+        }
         None => Err(Error::NotFound {
             message: "Game not found".to_string(),
         }),
@@ -204,7 +287,7 @@ async fn get_game(
 fn get_game_docs(op: TransformOperation) -> TransformOperation {
     op.tag("Game")
         .description("Get a game")
-        .response::<200, Json<GameBody<Game>>>()
+        .response::<200, Json<GameBody<GameWithPlayers>>>()
         .response::<400, Json<GenericError>>()
         .response::<404, Json<GenericError>>()
 }
