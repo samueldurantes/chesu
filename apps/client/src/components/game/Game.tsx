@@ -42,7 +42,13 @@ const Game = () => {
     ],
   });
 
-  const [san, setSan] = useState<string[]>([]);
+  const [san, setSan] = useState<string[]>(() => {
+    if (queryGame?.game?.id !== (params.id as string)) {
+      return [];
+    }
+
+    return queryGame?.game?.moves || [];
+  });
 
   useEffect(() => {
     // TODO: Move this to .env file
@@ -53,11 +59,13 @@ const Game = () => {
     });
 
     socket.addEventListener('message', (event) => {
-      const move = JSON.parse(event.data);
+      const data = JSON.parse(event.data);
 
-      console.log({ move });
+      if (data?.message) {
+        return;
+      }
 
-      setSan((prevSan) => [...prevSan, move]);
+      setSan((prevSan) => [...prevSan, data.play_move]);
     });
 
     connection.current = socket;
@@ -82,8 +90,6 @@ const Game = () => {
       if (error) {
         throw new Error(error.message);
       }
-
-      console.log({ data });
 
       return data;
     },
@@ -155,7 +161,13 @@ const Game = () => {
           boardOrientation={colorLoggedPlayer}
           san={san}
           onMove={(move) => {
-            connection.current?.send(JSON.stringify(move));
+            connection.current?.send(
+              JSON.stringify({
+                game_id: params.id,
+                player_id: queryUser?.data?.user?.id,
+                play_move: move,
+              })
+            );
           }}
         />
 
