@@ -19,6 +19,7 @@ use axum::{
     Json,
 };
 use futures::{stream::StreamExt, SinkExt};
+use rand::{seq::SliceRandom, thread_rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
@@ -48,6 +49,7 @@ struct GameBody<T> {
 #[derive(Deserialize, JsonSchema)]
 struct CreateGame {
     bet_value: i32,
+    color_preference: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -79,8 +81,17 @@ async fn create_game(
     state: State<crate::AppState>,
     payload: Json<GameBody<CreateGame>>,
 ) -> Result<Json<GameBody<Game>>> {
+    let color_column = match payload.game.color_preference.as_deref() {
+        Some("white") => "white_player",
+        Some("black") => "black_player",
+        _ => {
+            let choices = ["white_player", "black_player"];
+            *choices.choose(&mut thread_rng()).unwrap()
+        }
+    };
+
     let game_id: Uuid = sqlx::query(&format!(
-        "INSERT INTO games (white_player, bet_value) VALUES ($1, $2) RETURNING id"
+        "INSERT INTO games ({color_column}, bet_value) VALUES ($1, $2) RETURNING id"
     ))
     .bind(auth_user.user_id)
     .bind(payload.game.bet_value)
