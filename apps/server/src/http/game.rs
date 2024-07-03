@@ -160,25 +160,38 @@ async fn join_game(
 
     match game {
         Some(game) => {
-            if game.black_player.is_some() {
+            if game.black_player.is_some() && game.white_player.is_some() {
                 return Err(Error::BadRequest {
                     message: "Game is full".to_string(),
                 });
             }
 
-            let game = sqlx::query_as!(
-                Game,
+            let color_column = if game.white_player.is_none() {
+                "white_player"
+            } else {
+                "black_player"
+            };
+
+            let game_row = sqlx::query(&format!(
                 r#"
                     UPDATE games
-                    SET black_player = $1
+                    SET {color_column} = $1
                     WHERE id = $2
                     RETURNING id, white_player, black_player, bet_value, moves
-                "#,
-                auth_user.user_id,
-                game_id,
-            )
+                "#
+            ))
+            .bind(auth_user.user_id)
+            .bind(game_id)
             .fetch_one(&state.db)
             .await?;
+
+            let game = Game {
+                id: game_row.get("id"),
+                white_player: game_row.get("white_player"),
+                black_player: game_row.get("black_player"),
+                bet_value: game_row.get("bet_value"),
+                moves: game_row.get("moves"),
+            };
 
             let white_player = sqlx::query_as!(
                 GamePlayer,
