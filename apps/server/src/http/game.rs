@@ -21,6 +21,7 @@ use axum::{
 use futures::{stream::StreamExt, SinkExt};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sqlx::Row;
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
@@ -78,44 +79,35 @@ async fn create_game(
     state: State<crate::AppState>,
     payload: Json<GameBody<CreateGame>>,
 ) -> Result<Json<GameBody<Game>>> {
-    let game = sqlx::query_scalar!(
-        r#"
-            INSERT INTO games (white_player, bet_value) VALUES ($1, $2) RETURNING id
-        "#,
-        // TODO: Allow the user choose your color
-        auth_user.user_id,
-        payload.game.bet_value,
-    )
-    .fetch_optional(&state.db)
-    .await?;
+    let game_id: Uuid = sqlx::query(&format!(
+        "INSERT INTO games (white_player, bet_value) VALUES ($1, $2) RETURNING id"
+    ))
+    .bind(auth_user.user_id)
+    .bind(payload.game.bet_value)
+    .fetch_one(&state.db)
+    .await?
+    .get("id");
 
-    match game {
-        Some(game_id) => {
-            let mut rooms = state.rooms.as_ref().lock().unwrap();
-            let new_room = rooms
-                .entry(game_id.to_string())
-                .or_insert_with(RoomState::new);
+    let mut rooms = state.rooms.as_ref().lock().unwrap();
+    let new_room = rooms
+        .entry(game_id.to_string())
+        .or_insert_with(RoomState::new);
 
-            new_room
-                .players
-                .lock()
-                .unwrap()
-                .insert(auth_user.user_id.to_string());
+    new_room
+        .players
+        .lock()
+        .unwrap()
+        .insert(auth_user.user_id.to_string());
 
-            Ok(Json(GameBody {
-                game: Game {
-                    id: game_id,
-                    white_player: auth_user.user_id,
-                    black_player: None,
-                    bet_value: payload.game.bet_value,
-                    moves: vec![],
-                },
-            }))
-        }
-        None => Err(Error::BadRequest {
-            message: "Error when creating game".to_string(),
-        }),
-    }
+    Ok(Json(GameBody {
+        game: Game {
+            id: game_id,
+            white_player: auth_user.user_id,
+            black_player: None,
+            bet_value: payload.game.bet_value,
+            moves: vec![],
+        },
+    }))
 }
 
 fn create_game_docs(op: TransformOperation) -> TransformOperation {
