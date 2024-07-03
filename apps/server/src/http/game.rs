@@ -55,7 +55,7 @@ struct CreateGame {
 #[derive(Serialize, Deserialize, JsonSchema)]
 struct Game {
     id: Uuid,
-    white_player: Uuid,
+    white_player: Option<Uuid>,
     black_player: Option<Uuid>,
     bet_value: i32,
     moves: Vec<String>,
@@ -99,6 +99,15 @@ async fn create_game(
     .await?
     .get("id");
 
+    let mut white_player: Option<Uuid> = None;
+    let mut black_player: Option<Uuid> = None;
+
+    if color_column == "white_player" {
+        white_player = Some(auth_user.user_id);
+    } else {
+        black_player = Some(auth_user.user_id);
+    };
+
     let mut rooms = state.rooms.as_ref().lock().unwrap();
     let new_room = rooms
         .entry(game_id.to_string())
@@ -113,8 +122,8 @@ async fn create_game(
     Ok(Json(GameBody {
         game: Game {
             id: game_id,
-            white_player: auth_user.user_id,
-            black_player: None,
+            white_player,
+            black_player,
             bet_value: payload.game.bet_value,
             moves: vec![],
         },
