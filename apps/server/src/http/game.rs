@@ -19,8 +19,10 @@ use axum::{
     Json,
 };
 use futures::{stream::StreamExt, SinkExt};
+use rand::{seq::SliceRandom, thread_rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sqlx::Row;
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
@@ -47,12 +49,13 @@ struct GameBody<T> {
 #[derive(Deserialize, JsonSchema)]
 struct CreateGame {
     bet_value: i32,
+    color_preference: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 struct Game {
     id: Uuid,
-    white_player: Uuid,
+    white_player: Option<Uuid>,
     black_player: Option<Uuid>,
     last_move_player: Option<Uuid>,
     bet_value: i32,
@@ -79,45 +82,53 @@ async fn create_game(
     state: State<crate::AppState>,
     payload: Json<GameBody<CreateGame>>,
 ) -> Result<Json<GameBody<Game>>> {
-    let game = sqlx::query_scalar!(
-        r#"
-            INSERT INTO games (white_player, bet_value) VALUES ($1, $2) RETURNING id
-        "#,
-        // TODO: Allow the user choose your color
-        auth_user.user_id,
-        payload.game.bet_value,
-    )
-    .fetch_optional(&state.db)
-    .await?;
-
-    match game {
-        Some(game_id) => {
-            let mut rooms = state.rooms.as_ref().lock().unwrap();
-            let new_room = rooms
-                .entry(game_id.to_string())
-                .or_insert_with(RoomState::new);
-
-            new_room
-                .players
-                .lock()
-                .unwrap()
-                .insert(auth_user.user_id.to_string());
-
-            Ok(Json(GameBody {
-                game: Game {
-                    id: game_id,
-                    white_player: auth_user.user_id,
-                    black_player: None,
-                    last_move_player: None,
-                    bet_value: payload.game.bet_value,
-                    moves: vec![],
-                },
-            }))
+    let color_column = match payload.game.color_preference.as_deref() {
+        Some("white") => "white_player",
+        Some("black") => "black_player",
+        _ => {
+            let choices = ["white_player", "black_player"];
+            *choices.choose(&mut thread_rng()).unwrap()
         }
-        None => Err(Error::BadRequest {
-            message: "Error when creating game".to_string(),
-        }),
-    }
+    };
+
+    let game_id: Uuid = sqlx::query(&format!(
+        "INSERT INTO games ({color_column}, bet_value) VALUES ($1, $2) RETURNING id"
+    ))
+    .bind(auth_user.user_id)
+    .bind(payload.game.bet_value)
+    .fetch_one(&state.db)
+    .await?
+    .get("id");
+
+    let mut white_player: Option<Uuid> = None;
+    let mut black_player: Option<Uuid> = None;
+
+    if color_column == "white_player" {
+        white_player = Some(auth_user.user_id);
+    } else {
+        black_player = Some(auth_user.user_id);
+    };
+
+    let mut rooms = state.rooms.as_ref().lock().unwrap();
+    let new_room = rooms
+        .entry(game_id.to_string())
+        .or_insert_with(RoomState::new);
+
+    new_room
+        .players
+        .lock()
+        .unwrap()
+        .insert(auth_user.user_id.to_string());
+
+    Ok(Json(GameBody {
+        game: Game {
+            id: game_id,
+            white_player,
+            black_player,
+            bet_value: payload.game.bet_value,
+            moves: vec![],
+        },
+    }))
 }
 
 fn create_game_docs(op: TransformOperation) -> TransformOperation {
@@ -150,25 +161,38 @@ async fn join_game(
 
     match game {
         Some(game) => {
-            if game.black_player.is_some() {
+            if game.black_player.is_some() && game.white_player.is_some() {
                 return Err(Error::BadRequest {
                     message: "Game is full".to_string(),
                 });
             }
 
-            let game = sqlx::query_as!(
-                Game,
+            let color_column = if game.white_player.is_none() {
+                "white_player"
+            } else {
+                "black_player"
+            };
+
+            let game_row = sqlx::query(&format!(
                 r#"
                     UPDATE games
-                    SET black_player = $1
+                    SET {color_column} = $1
                     WHERE id = $2
-                    RETURNING id, white_player, black_player, bet_value, last_move_player, moves
-                "#,
-                auth_user.user_id,
-                game_id,
-            )
+                    RETURNING id, white_player, black_player, bet_value, moves
+                "#
+            ))
+            .bind(auth_user.user_id)
+            .bind(game_id)
             .fetch_one(&state.db)
             .await?;
+
+            let game = Game {
+                id: game_row.get("id"),
+                white_player: game_row.get("white_player"),
+                black_player: game_row.get("black_player"),
+                bet_value: game_row.get("bet_value"),
+                moves: game_row.get("moves"),
+            };
 
             let white_player = sqlx::query_as!(
                 GamePlayer,
