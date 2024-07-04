@@ -20,6 +20,7 @@ const Game = () => {
       {
         queryKey: ['user/me'],
         queryFn: () => api.GET('/user/me'),
+        networkMode: 'always',
       },
       {
         queryKey: ['game/detail'],
@@ -42,6 +43,35 @@ const Game = () => {
     ],
   });
 
+  const getColorLoggedPlayer = () => {
+    if (queryGame?.game?.white_player?.id === queryUser?.data?.user?.id) {
+      return 'white';
+    }
+
+    return 'black';
+  };
+
+  const colorLoggedPlayer = getColorLoggedPlayer();
+
+  const [opponent, setOpponent] = useState<string>(() => {
+    const whitePlayer = queryGame?.game?.white_player;
+    const blackPlayer = queryGame?.game?.black_player;
+
+    if (colorLoggedPlayer === 'white') {
+      if (!blackPlayer) {
+        return 'Waiting for opponent...';
+      }
+
+      return blackPlayer.username;
+    }
+
+    if (!whitePlayer) {
+      return 'Waiting for opponent...';
+    }
+
+    return whitePlayer.username;
+  });
+
   const [san, setSan] = useState<string[]>(() => {
     if (queryGame?.game?.id !== (params.id as string)) {
       return [];
@@ -59,13 +89,21 @@ const Game = () => {
     });
 
     socket.addEventListener('message', (event) => {
-      const data = JSON.parse(event.data);
+      const receiverData = JSON.parse(event.data);
 
-      if (data?.message) {
+      if (receiverData?.event === 'join') {
+        if (receiverData?.data?.id !== queryUser.data?.user?.id) {
+          setOpponent(receiverData?.data?.username);
+        }
+
         return;
       }
 
-      setSan((prevSan) => [...prevSan, data.play_move]);
+      if (receiverData?.message) {
+        return;
+      }
+
+      setSan((prevSan) => [...prevSan, receiverData.play_move]);
     });
 
     connection.current = socket;
@@ -73,7 +111,7 @@ const Game = () => {
     return () => {
       socket.close();
     };
-  }, [params]);
+  }, [params, queryUser]);
 
   const queryClient = useQueryClient();
 
@@ -98,35 +136,6 @@ const Game = () => {
     },
     onError: (error) => console.log({ error }),
   });
-
-  const getColorLoggedPlayer = () => {
-    if (queryGame?.game?.white_player?.id === queryUser?.data?.user?.id) {
-      return 'white';
-    }
-
-    return 'black';
-  };
-
-  const colorLoggedPlayer = getColorLoggedPlayer();
-
-  const getOpponent = (): string => {
-    const whitePlayer = queryGame?.game?.white_player;
-    const blackPlayer = queryGame?.game?.black_player;
-
-    if (colorLoggedPlayer === 'white') {
-      if (!blackPlayer) {
-        return 'Waiting for opponent...';
-      }
-
-      return blackPlayer.username;
-    }
-
-    if (!whitePlayer) {
-      return 'Waiting for opponent...';
-    }
-
-    return whitePlayer.username;
-  };
 
   const getJoinButton = () => {
     const whitePlayer = queryGame?.game?.white_player;
@@ -153,7 +162,7 @@ const Game = () => {
         <Card className="flex items-center justify-between p-4 bg-[#1e1e1e]">
           <div className="flex gap-2 items-center">
             <div className="bg-white h-[50px] w-[50px]"></div>
-            <span className="text-white">{getOpponent()}</span>
+            <span className="text-white">{opponent}</span>
           </div>
         </Card>
 
