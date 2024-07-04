@@ -52,11 +52,12 @@ struct CreateGame {
     color_preference: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 struct Game {
     id: Uuid,
     white_player: Option<Uuid>,
     black_player: Option<Uuid>,
+    last_move_player: Option<Uuid>,
     bet_value: i32,
     moves: Vec<String>,
 }
@@ -149,7 +150,7 @@ async fn join_game(
     let game = sqlx::query_as!(
         Game,
         r#"
-            SELECT id, white_player, black_player, bet_value, moves
+            SELECT id, white_player, black_player, bet_value, last_move_player, moves
             FROM games
             WHERE id = $1
         "#,
@@ -266,7 +267,7 @@ async fn get_game(
     let game = sqlx::query_as!(
         Game,
         r#"
-            SELECT id, white_player, black_player, bet_value, moves
+            SELECT id, white_player, black_player, bet_value, last_move_player, moves
             FROM games
             WHERE id = $1
         "#,
@@ -332,6 +333,65 @@ async fn game_ws(
     NoApi(ws.on_upgrade(|socket| game_handle_socket(socket, state)))
 }
 
+// TODO: Think in a better name for this struct
+#[derive(Clone, Serialize, Deserialize)]
+struct Move {
+    game_id: Uuid,
+    player_id: Uuid,
+    play_move: String,
+}
+
+async fn update_moves(game: Game, move_: Move, state: &crate::AppState) -> Result<Game, String> {
+    if game
+        .last_move_player
+        .filter(|&id| id == move_.player_id)
+        .is_some()
+    {
+        return Err("Not your turn".to_string());
+    }
+
+    // TODO: Use Redis to save the moves rather than call the DB every move
+    sqlx::query_as!(
+        Game,
+        r#"
+            UPDATE games
+            SET 
+                last_move_player = $1,
+                moves = array_append(moves, $3)
+            WHERE id = $2
+            RETURNING id, white_player, black_player, bet_value, last_move_player, moves
+        "#,
+        move_.player_id,
+        game.id,
+        move_.play_move,
+    )
+    .fetch_one(&state.db)
+    .await
+    .map_err(|_| "Failed to update moves".to_string())
+}
+
+async fn handle_board_event(message: String, state: &crate::AppState) -> Result<Move, String> {
+    let move_: Move =
+        serde_json::from_str(&message).map_err(|_| "Failed to build the move".to_string())?;
+
+    let game = sqlx::query_as!(
+        Game,
+        r#"
+            SELECT id, white_player, black_player, bet_value, last_move_player, moves
+            FROM games
+            WHERE id = $1
+        "#,
+        move_.game_id,
+    )
+    .fetch_one(&state.db)
+    .await
+    .map_err(|_| "Failed to get the game".to_string())?;
+
+    update_moves(game, move_.clone(), state).await?;
+
+    Ok(move_)
+}
+
 async fn game_handle_socket(socket: WebSocket, state: crate::AppState) {
     let (mut sender, mut receiver) = socket.split();
     let mut tx = None::<broadcast::Sender<String>>;
@@ -352,17 +412,28 @@ async fn game_handle_socket(socket: WebSocket, state: crate::AppState) {
 
     let mut recv_messages = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
-            sender.send(Message::Text(msg)).await.unwrap();
+            match sender.send(Message::Text(msg)).await {
+                _ => (),
+            }
         }
     });
 
     let mut send_messages = {
         let tx = tx.clone();
         tokio::spawn(async move {
-            while let Some(Ok(Message::Text(text))) = receiver.next().await {
-                dbg!(text.clone());
+            while let Some(Ok(Message::Text(message))) = receiver.next().await {
+                match handle_board_event(message, &state).await {
+                    Ok(move_) => {
+                        let Ok(move_json) = serde_json::to_string(&move_) else {
+                            let _ = tx.send("Failed to build the move".to_string());
+                            return ();
+                        };
 
-                let _ = tx.send(text);
+                        let _ = tx.send(move_json);
+                    }
+                    // TODO: It should be return to client
+                    Err(_) => (),
+                }
             }
         })
     };
