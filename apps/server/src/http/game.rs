@@ -2,6 +2,7 @@ use crate::{
     http::{error::Error, extractor::AuthUser, Result},
     RoomState,
 };
+
 use aide::{
     axum::{
         routing::{get_with, post_with},
@@ -19,6 +20,7 @@ use axum::{
     Json,
 };
 use futures::{stream::StreamExt, SinkExt};
+use futures_util::TryFutureExt;
 use rand::{seq::SliceRandom, thread_rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -108,15 +110,14 @@ async fn create_game(
         black_player = Some(auth_user.user_id);
     };
 
-    let mut rooms = state.rooms.as_ref().lock().unwrap();
+    let mut rooms = state.rooms.as_ref().lock()?;
     let new_room = rooms
         .entry(game_id.to_string())
         .or_insert_with(RoomState::new);
 
     new_room
         .players
-        .lock()
-        .unwrap()
+        .lock()?
         .insert(auth_user.user_id.to_string());
 
     Ok(Json(GameBody {
@@ -217,10 +218,10 @@ async fn join_game(
             .fetch_optional(&state.db)
             .await?;
 
-            let mut rooms = state.rooms.as_ref().lock().unwrap();
+            let mut rooms = state.rooms.as_ref().lock()?;
 
             if let Some(room) = rooms.get_mut(&game_id.to_string()) {
-                let mut room_players = room.players.lock().unwrap();
+                let mut room_players = room.players.lock()?;
 
                 if room_players.len() > 2 {
                     return Err(Error::BadRequest {
@@ -329,17 +330,20 @@ async fn game_ws(
     NoApi(ws): NoApi<WebSocketUpgrade>,
     State(state): State<crate::AppState>,
 ) -> NoApi<impl IntoResponse> {
-    NoApi(ws.on_upgrade(|socket| game_handle_socket(socket, state)))
+    NoApi(ws.on_upgrade(|socket| {
+        game_handle_socket(socket, state)
+            .unwrap_or_else(|_| eprintln!("error occur in game socket handler"))
+    }))
 }
 
-async fn game_handle_socket(socket: WebSocket, state: crate::AppState) {
+async fn game_handle_socket(socket: WebSocket, state: crate::AppState) -> Result<()> {
     let (mut sender, mut receiver) = socket.split();
     let mut tx = None::<broadcast::Sender<String>>;
 
     while let Some(Ok(msg)) = receiver.next().await {
-        let mut rooms = state.rooms.lock().unwrap();
+        let mut rooms = state.rooms.lock()?;
 
-        tx = match rooms.get_mut(msg.to_text().unwrap()) {
+        tx = match rooms.get_mut(msg.to_text()?) {
             Some(room) => Some(room.tx.clone()),
             None => None,
         };
@@ -347,13 +351,14 @@ async fn game_handle_socket(socket: WebSocket, state: crate::AppState) {
         break;
     }
 
-    let tx = tx.unwrap();
+    let tx = tx.ok_or(Error::NoneError)?;
     let mut rx = tx.subscribe();
 
     let mut recv_messages = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
-            sender.send(Message::Text(msg)).await.unwrap();
+            sender.send(Message::Text(msg)).await?;
         }
+        Ok::<(), Error>(())
     });
 
     let mut send_messages = {
@@ -368,8 +373,8 @@ async fn game_handle_socket(socket: WebSocket, state: crate::AppState) {
     };
 
     tokio::select! {
-        _ = (&mut send_messages) => recv_messages.abort(),
-        _ = (&mut recv_messages) => send_messages.abort(),
+        _ = (&mut send_messages) => Ok(recv_messages.abort()),
+        _ = (&mut recv_messages) => Ok(send_messages.abort()),
     }
 }
 

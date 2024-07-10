@@ -24,8 +24,8 @@ pub struct AuthUserClaims {
 }
 
 impl AuthUser {
-    pub fn to_jwt(&self) -> String {
-        let key = HS256Key::from_bytes(std::env::var("JWT_SECRET").unwrap().as_bytes());
+    pub fn to_jwt(&self) -> Result<String, Error> {
+        let key = HS256Key::from_bytes(std::env::var("JWT_SECRET")?.as_bytes());
 
         let custom_claims = Claims::with_custom_claims(
             AuthUserClaims {
@@ -34,11 +34,11 @@ impl AuthUser {
             Duration::from_days(30),
         );
 
-        key.authenticate(custom_claims).unwrap()
+        Ok(key.authenticate(custom_claims)?)
     }
 
     pub fn from_jwt(token: &str) -> Result<Self, Error> {
-        let key = HS256Key::from_bytes(std::env::var("JWT_SECRET").unwrap().as_bytes());
+        let key = HS256Key::from_bytes(std::env::var("JWT_SECRET")?.as_bytes());
 
         match key.verify_token::<AuthUserClaims>(&token, None) {
             Ok(claims) => Ok(Self {
@@ -59,7 +59,10 @@ where
 {
     type Rejection = Error;
 
-    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut Parts,
+        _: &S,
+    ) -> core::result::Result<Self, Self::Rejection> {
         let cookies =
             parts
                 .extract::<TypedHeader<Cookie>>()

@@ -89,7 +89,7 @@ async fn register(
             let token = AuthUser { user_id }.to_jwt();
 
             Ok((
-                AppendHeaders([(SET_COOKIE, build_set_cookie(token))]),
+                AppendHeaders([(SET_COOKIE, build_set_cookie(token?))]),
                 Json(UserBody {
                     user: User {
                         id: user_id.to_string(),
@@ -149,7 +149,7 @@ async fn login(
     let token = AuthUser { user_id: user.id }.to_jwt();
 
     Ok((
-        AppendHeaders([(SET_COOKIE, build_set_cookie(token))]),
+        AppendHeaders([(SET_COOKIE, build_set_cookie(token?))]),
         Json(UserBody {
             user: User {
                 id: user.id.to_string(),

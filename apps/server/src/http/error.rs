@@ -1,3 +1,4 @@
+use axum::extract::ws::Message;
 use axum::http::header::WWW_AUTHENTICATE;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -7,6 +8,7 @@ use serde_json::json;
 use sqlx::error::DatabaseError;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::sync::PoisonError;
 
 #[derive(JsonSchema)]
 pub struct GenericError {
@@ -42,6 +44,21 @@ pub enum Error {
 
     #[error("an internal server error occurred")]
     Anyhow(#[from] anyhow::Error),
+
+    #[error("an error ocurred with mutex lock")]
+    PoisonError(#[from] std::sync::PoisonError<()>),
+
+    #[error("an error ocurred with axum")]
+    AxumError(#[from] axum::Error),
+
+    #[error("option was none")]
+    NoneError,
+
+    #[error("failed to send message: {0}")]
+    SendError(#[from] tokio::sync::mpsc::error::SendError<Message>),
+
+    #[error("an environment variable was not found")]
+    VarError(#[from] std::env::VarError),
 }
 
 impl Error {
@@ -69,8 +86,14 @@ impl Error {
             Self::Forbidden => StatusCode::FORBIDDEN,
             Self::NotFound { .. } => StatusCode::NOT_FOUND,
             Self::UnprocessableEntity { .. } => StatusCode::UNPROCESSABLE_ENTITY,
-            Self::Sqlx(_) | Self::Anyhow(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
+    }
+}
+
+impl<T> From<PoisonError<std::sync::MutexGuard<'_, T>>> for Error {
+    fn from(_: PoisonError<std::sync::MutexGuard<'_, T>>) -> Self {
+        Error::PoisonError(PoisonError::new(()))
     }
 }
 

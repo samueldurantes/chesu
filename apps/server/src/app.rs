@@ -1,4 +1,8 @@
+use anyhow::Result;
 use std::{sync::Arc, time::Duration};
+
+use dotenvy::dotenv;
+use std::env;
 
 use crate::{http, AppState};
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
@@ -14,10 +18,13 @@ use tower_http::{
     sensitive_headers::SetSensitiveHeadersLayer, timeout::TimeoutLayer, trace::TraceLayer,
 };
 
-pub fn make_app() -> (Router<AppState>, OpenApi) {
+pub fn make_app() -> Result<(Router<AppState>, OpenApi)> {
     aide::gen::on_error(|error| {
         println!("{error}");
     });
+
+    dotenv().ok();
+    let origin_url = env::var("ORIGIN_URL")?;
 
     aide::gen::extract_schemas(true);
 
@@ -42,14 +49,11 @@ pub fn make_app() -> (Router<AppState>, OpenApi) {
             CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST])
                 .allow_headers([CONTENT_TYPE])
-                .allow_origin(
-                    // TODO: Change this to consume from .env
-                    "http://localhost:5173".parse::<HeaderValue>().unwrap(),
-                )
+                .allow_origin(origin_url.parse::<HeaderValue>()?)
                 .allow_credentials(true),
         ));
 
-    (app, api)
+    Ok((app, api))
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
