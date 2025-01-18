@@ -7,6 +7,22 @@ import { Button } from '../ui/Button';
 const HomeActions = () => {
   const navigate = useNavigate();
 
+
+  const { mutateAsync: mutatePairingGame, isPending: isPendingPairGame } = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await api.POST('/game/pairing');
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return data;
+    },
+    onSuccess: (data) => navigate(`/game/${data.game}`),
+    // TODO: Show a snackbar with the error message
+    onError: (error) => console.log({ error }),
+  });
+
   const { mutateAsync: mutateCreateGame, isPending } = useMutation({
     mutationFn: async () => {
       const { data, error } = await api.POST('/game/create', {
@@ -40,9 +56,10 @@ const HomeActions = () => {
       </Button>
       <Button
         className="w-full bg-[#3aafff] text-white hover:bg-[#80cfff]"
-        disabled
+        onClick={() => mutatePairingGame()}
+        disabled={isPendingPairGame}
       >
-        Play with a friend
+        Play
       </Button>
       <Button
         className="w-full bg-[#3aafff] text-white hover:bg-[#80cfff]"
