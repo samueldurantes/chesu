@@ -40,7 +40,7 @@ const HomeActions = () => {
 
       return data;
     },
-    onSuccess: (data) => navigate(`/game/${data.game.id}`),
+    onSuccess: (data) => navigate(`/game/${data.game}`),
     // TODO: Show a snackbar with the error message
     onError: (error) => console.log({ error }),
   });

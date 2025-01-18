@@ -171,37 +171,32 @@ fn quick_pairing_game_docs(op: TransformOperation) -> TransformOperation {
         .response::<400, Json<GenericError>>()
 }
 
-async fn create_game(
-    auth_user: AuthUser,
-    state: State<crate::AppState>,
-    payload: Json<GameBody<CreateGame>>,
-) -> Result<Json<GameBody<Game>>> {
-    let color_column = match payload.game.color_preference.as_deref() {
+fn pick_color(color_preference: Option<&str>) -> String {
+    match color_preference {
         Some("white") => "white_player",
         Some("black") => "black_player",
         _ => {
             let choices = ["white_player", "black_player"];
             *choices.choose(&mut thread_rng()).unwrap()
         }
-    };
+    }
+    .to_string()
+}
 
+async fn create_game(
+    auth_user: AuthUser,
+    state: State<crate::AppState>,
+    payload: Json<GameBody<CreateGame>>,
+) -> Result<Json<GameBody<Uuid>>> {
     let game_id: Uuid = sqlx::query(&format!(
-        "INSERT INTO games ({color_column}, bet_value) VALUES ($1, $2) RETURNING id"
+        "INSERT INTO games ({}, bet_value) VALUES ($1, $2) RETURNING id",
+        pick_color(payload.game.color_preference.as_deref())
     ))
     .bind(auth_user.user_id)
     .bind(payload.game.bet_value)
     .fetch_one(&state.db)
     .await?
     .get("id");
-
-    let mut white_player: Option<Uuid> = None;
-    let mut black_player: Option<Uuid> = None;
-
-    if color_column == "white_player" {
-        white_player = Some(auth_user.user_id);
-    } else {
-        black_player = Some(auth_user.user_id);
-    };
 
     let mut rooms = state.rooms.as_ref().lock().unwrap();
     let new_room = rooms
@@ -214,22 +209,13 @@ async fn create_game(
         .unwrap()
         .insert(auth_user.user_id.to_string());
 
-    Ok(Json(GameBody {
-        game: Game {
-            id: game_id,
-            white_player,
-            black_player,
-            last_move_player: None,
-            bet_value: payload.game.bet_value,
-            moves: vec![],
-        },
-    }))
+    Ok(Json(GameBody { game: game_id }))
 }
 
 fn create_game_docs(op: TransformOperation) -> TransformOperation {
     op.tag("Game")
         .description("Create a game")
-        .response::<200, Json<GameBody<Game>>>()
+        .response::<200, Json<GameBody<Uuid>>>()
         .response::<400, Json<GenericError>>()
 }
 
