@@ -7,21 +7,9 @@ use std::{
 use tokio::sync::Notify;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-fn get_dotenv_path() -> String {
-    std::path::Path::new(file!())
-        .parent()
-        .expect("error on get .env path")
-        .parent()
-        .expect("error on get .env path")
-        .join(".env")
-        .to_str()
-        .unwrap()
-        .to_string()
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenvy::from_path(get_dotenv_path()).expect(".env file not found");
+    dotenvy::from_path(server::app::get_dotenv_path()).expect(".env file not found");
 
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())

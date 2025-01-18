@@ -13,7 +13,20 @@ use tower_http::{
     sensitive_headers::SetSensitiveHeadersLayer, timeout::TimeoutLayer, trace::TraceLayer,
 };
 
+pub fn get_dotenv_path() -> String {
+    std::path::Path::new(file!())
+        .parent()
+        .expect("error on get .env path")
+        .parent()
+        .expect("error on get .env path")
+        .join(".env")
+        .to_str()
+        .unwrap()
+        .to_string()
+}
+
 pub fn make_app() -> (Router<AppState>, OpenApi) {
+    dotenvy::from_path(get_dotenv_path()).expect(".env file not found");
     let client_url = &std::env::var("CLIENT_URL").expect("CLIENT_URL is void");
 
     aide::gen::on_error(|error| {
