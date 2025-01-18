@@ -10,6 +10,7 @@ import Register from './components/auth/Register';
 import Game from './components/game/Game.tsx';
 
 import './index.css';
+import Join from './components/game/Join.tsx';
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,10 @@ const router = createBrowserRouter([
       {
         path: '/',
         element: <Home />,
+      },
+      {
+        path: '/join/:id',
+        element: <Join />,
       },
       {
         path: '/game/:id',

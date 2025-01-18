@@ -136,7 +136,7 @@ export interface paths {
       responses: {
         200: {
           content: {
-            "application/json": components["schemas"]["GameBody_for_GameWithPlayers"];
+            "application/json": components["schemas"]["GameBody_for_Uuid"];
           };
         };
         400: {
