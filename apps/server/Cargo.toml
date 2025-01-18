@@ -24,7 +24,6 @@ tokio = { version = "1.36.0", features = ["full"] }
 uuid = { version = "1.7.0", features = ["v4", "serde"] }
 thiserror = "1.0.30"
 rand = "0.8.4"
-jwt-simple = "0.12.9"
 tower = "0.4.11"
 tower-http = { version = "0.5.0", features = [
     "catch-panic",
@@ -44,3 +43,5 @@ aide = { version = "0.13.4", features = [
 schemars = { version = "0.8.10", features = ["uuid1"] }
 futures = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+jsonwebtoken = "9.3.0"
+chrono = "0.4.39"
