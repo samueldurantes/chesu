@@ -219,121 +219,72 @@ fn create_game_docs(op: TransformOperation) -> TransformOperation {
         .response::<400, Json<GenericError>>()
 }
 
+fn notify_other_player(room: &RoomState, username: String) {
+    room.tx
+        .send(
+            serde_json::json!({
+               "event": "join",
+               "data": {
+                 "username": username
+                }
+            })
+            .to_string(),
+        )
+        .expect("Error on notify other player!");
+}
+
 async fn join_game(
     auth_user: AuthUser,
     state: State<crate::AppState>,
     Path(GameID { id: game_id }): Path<GameID>,
-) -> Result<Json<GameBody<GameWithPlayers>>> {
+) -> Result<Json<GameBody<Uuid>>> {
     let game_id = Uuid::parse_str(&game_id).map_err(|_| Error::BadRequest {
         message: "Invalid game id".to_string(),
     })?;
 
-    let game = sqlx::query_as!(
-        Game,
+    let username = sqlx::query!(
         r#"
-            SELECT id, white_player, black_player, bet_value, last_move_player, moves
-            FROM games
+        WITH updated_game AS (
+            UPDATE games
+            SET 
+                white_player = COALESCE(white_player, $2),
+                black_player = COALESCE(black_player, $2)
             WHERE id = $1
-        "#,
+            RETURNING id
+        )
+        SELECT u.username
+        FROM updated_game g
+        JOIN users u ON u.id = $2
+    "#,
         game_id,
+        auth_user.user_id
     )
-    .fetch_optional(&state.db)
-    .await?;
+    .fetch_one(&state.db)
+    .await?
+    .username;
 
-    match game {
-        Some(game) => {
-            if game.black_player.is_some() && game.white_player.is_some() {
-                return Err(Error::BadRequest {
-                    message: "Game is full".to_string(),
-                });
-            }
+    let mut rooms = state.rooms.as_ref().lock().unwrap();
 
-            let color_column = if game.white_player.is_none() {
-                "white_player"
-            } else {
-                "black_player"
-            };
+    if let Some(room) = rooms.get_mut(&game_id.to_string()) {
+        let mut room_players = room.players.lock().unwrap();
 
-            let game_row = sqlx::query(&format!(
-                r#"
-                    UPDATE games
-                    SET {color_column} = $1
-                    WHERE id = $2
-                    RETURNING id, white_player, black_player, bet_value, moves
-                "#
-            ))
-            .bind(auth_user.user_id)
-            .bind(game_id)
-            .fetch_one(&state.db)
-            .await?;
-
-            let game = Game {
-                id: game_row.get("id"),
-                white_player: game_row.get("white_player"),
-                last_move_player: None,
-                black_player: game_row.get("black_player"),
-                bet_value: game_row.get("bet_value"),
-                moves: game_row.get("moves"),
-            };
-
-            let white_player = sqlx::query_as!(
-                GamePlayer,
-                r#"
-                    SELECT id, username
-                    FROM users
-                    WHERE id = $1
-                "#,
-                game.white_player,
-            )
-            .fetch_optional(&state.db)
-            .await?;
-
-            let black_player = sqlx::query_as!(
-                GamePlayer,
-                r#"
-                    SELECT id, username
-                    FROM users
-                    WHERE id = $1
-                "#,
-                game.black_player,
-            )
-            .fetch_optional(&state.db)
-            .await?;
-
-            let mut rooms = state.rooms.as_ref().lock().unwrap();
-
-            if let Some(room) = rooms.get_mut(&game_id.to_string()) {
-                let mut room_players = room.players.lock().unwrap();
-
-                if room_players.len() > 2 {
-                    return Err(Error::BadRequest {
-                        message: "Game is full".to_string(),
-                    });
-                }
-
-                room_players.insert(auth_user.user_id.to_string());
-            }
-
-            Ok(Json(GameBody {
-                game: GameWithPlayers {
-                    id: game.id,
-                    white_player,
-                    black_player,
-                    bet_value: game.bet_value,
-                    moves: game.moves,
-                },
-            }))
+        if room_players.len() > 2 {
+            return Err(Error::BadRequest {
+                message: "Game is full".to_string(),
+            });
         }
-        None => Err(Error::NotFound {
-            message: "Game not found".to_string(),
-        }),
+
+        room_players.insert(auth_user.user_id.to_string());
+        notify_other_player(&room, username);
     }
+
+    Ok(Json(GameBody { game: game_id }))
 }
 
 fn join_game_docs(op: TransformOperation) -> TransformOperation {
     op.tag("Game")
         .description("Join a game")
-        .response::<200, Json<GameBody<GameWithPlayers>>>()
+        .response::<200, Json<GameBody<Uuid>>>()
         .response::<400, Json<GenericError>>()
         .response::<404, Json<GenericError>>()
 }
