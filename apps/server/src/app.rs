@@ -1,5 +1,3 @@
-use std::{sync::Arc, time::Duration};
-
 use crate::{http, AppState};
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
 use axum::{
@@ -9,12 +7,15 @@ use axum::{
     },
     Extension, Router,
 };
+use std::{sync::Arc, time::Duration};
 use tower_http::{
     catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
     sensitive_headers::SetSensitiveHeadersLayer, timeout::TimeoutLayer, trace::TraceLayer,
 };
 
 pub fn make_app() -> (Router<AppState>, OpenApi) {
+    let client_url = &std::env::var("CLIENT_URL").expect("CLIENT_URL is void");
+
     aide::gen::on_error(|error| {
         println!("{error}");
     });
@@ -42,10 +43,7 @@ pub fn make_app() -> (Router<AppState>, OpenApi) {
             CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST])
                 .allow_headers([CONTENT_TYPE])
-                .allow_origin(
-                    // TODO: Change this to consume from .env
-                    "http://localhost:5173".parse::<HeaderValue>().unwrap(),
-                )
+                .allow_origin(client_url.parse::<HeaderValue>().unwrap())
                 .allow_credentials(true),
         ));
 
