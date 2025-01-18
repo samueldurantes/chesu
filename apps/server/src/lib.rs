@@ -1,6 +1,8 @@
+use crate::http::game::Game;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
+use tokio::sync::Notify;
 
 use sqlx::PgPool;
 
@@ -21,8 +23,14 @@ impl RoomState {
     }
 }
 
+pub struct PairingRoom {
+    pub game: Mutex<Option<Game>>,
+    pub notifier: Notify,
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub db: PgPool,
     pub rooms: Arc<Mutex<HashMap<String, RoomState>>>,
+    pub pairing_room: Arc<PairingRoom>,
 }

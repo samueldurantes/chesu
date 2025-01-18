@@ -61,6 +61,23 @@ export interface paths {
   };
   "/docs": {
   };
+  "/game/pairing": {
+    /** @description Quick Pair players to play */
+    post: {
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["GameBody_for_Uuid"];
+          };
+        };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
+      };
+    };
+  };
   "/game/create": {
     /** @description Create a game */
     post: {
@@ -134,6 +151,8 @@ export interface paths {
         };
       };
     };
+  };
+  "/game/ws": {
   };
   "/user/me": {
     /** @description Get logged user */
@@ -219,6 +238,7 @@ export interface components {
     CreateGame: {
       /** Format: int32 */
       bet_value: number;
+      color_preference?: string | null;
     };
     /** @description A single encoding definition applied to a single schema property. */
     Encoding: {
@@ -266,9 +286,11 @@ export interface components {
       black_player?: string | null;
       /** Format: uuid */
       id: string;
+      /** Format: uuid */
+      last_move_player?: string | null;
       moves: string[];
       /** Format: uuid */
-      white_player: string;
+      white_player?: string | null;
     };
     GameBody_for_CreateGame: {
       game: components["schemas"]["CreateGame"];
@@ -278,6 +300,10 @@ export interface components {
     };
     GameBody_for_GameWithPlayers: {
       game: components["schemas"]["GameWithPlayers"];
+    };
+    GameBody_for_Uuid: {
+      /** Format: uuid */
+      game: string;
     };
     GameID: {
       id: string;

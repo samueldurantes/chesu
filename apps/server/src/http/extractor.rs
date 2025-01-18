@@ -6,8 +6,9 @@ use axum::{
     http::request::Parts,
 };
 use axum_extra::{headers::Cookie, TypedHeader};
-use jwt_simple::prelude::*;
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
+use std::env;
 use uuid::Uuid;
 
 pub(crate) static COOKIE_NAME: &str = "CHESU_TOKEN";
@@ -17,32 +18,43 @@ pub struct AuthUser {
     pub user_id: Uuid,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct AuthUserClaims {
-    pub user_id: Uuid,
-    // exp: i64,
+#[derive(Debug, Serialize, Deserialize)]
+struct AuthUserClaims {
+    user_id: Uuid,
+    exp: usize,
 }
 
 impl AuthUser {
     pub fn to_jwt(&self) -> String {
-        let key = HS256Key::from_bytes(std::env::var("JWT_SECRET").unwrap().as_bytes());
+        let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+        let expiration = chrono::Utc::now()
+            .checked_add_signed(chrono::Duration::days(30))
+            .expect("Failed to create expiration date")
+            .timestamp() as usize;
 
-        let custom_claims = Claims::with_custom_claims(
-            AuthUserClaims {
-                user_id: self.user_id,
-            },
-            Duration::from_days(30),
-        );
+        let claims = AuthUserClaims {
+            user_id: self.user_id,
+            exp: expiration,
+        };
 
-        key.authenticate(custom_claims).unwrap()
+        encode(
+            &Header::new(Algorithm::HS256),
+            &claims,
+            &EncodingKey::from_secret(secret.as_bytes()),
+        )
+        .expect("Failed to encode JWT")
     }
 
     pub fn from_jwt(token: &str) -> Result<Self, Error> {
-        let key = HS256Key::from_bytes(std::env::var("JWT_SECRET").unwrap().as_bytes());
+        let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
 
-        match key.verify_token::<AuthUserClaims>(&token, None) {
-            Ok(claims) => Ok(Self {
-                user_id: claims.custom.user_id,
+        match decode::<AuthUserClaims>(
+            token,
+            &DecodingKey::from_secret(secret.as_bytes()),
+            &Validation::new(Algorithm::HS256),
+        ) {
+            Ok(data) => Ok(Self {
+                user_id: data.claims.user_id,
             }),
             Err(_) => Err(Error::Unauthorized {
                 message: "Not authorized".to_string(),
