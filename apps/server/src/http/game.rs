@@ -28,8 +28,14 @@ use uuid::Uuid;
 
 use super::error::GenericError;
 
+const DEFAULT_BET_VALUE: i32 = 10;
+
 pub(crate) fn router() -> ApiRouter<crate::AppState> {
     ApiRouter::new()
+        .api_route(
+            "/game/pairing",
+            post_with(quick_pairing_game, quick_pairing_game_docs),
+        )
         .api_route("/game/create", post_with(create_game, create_game_docs))
         .api_route("/game/:id", get_with(get_game, get_game_docs))
         .api_route("/game/:id", post_with(join_game, join_game_docs))
@@ -52,14 +58,42 @@ struct CreateGame {
     color_preference: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
-struct Game {
-    id: Uuid,
-    white_player: Option<Uuid>,
-    black_player: Option<Uuid>,
-    last_move_player: Option<Uuid>,
-    bet_value: i32,
-    moves: Vec<String>,
+#[derive(Default, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct Game {
+    pub id: Uuid,
+    pub white_player: Option<Uuid>,
+    pub black_player: Option<Uuid>,
+    pub last_move_player: Option<Uuid>,
+    pub bet_value: i32,
+    pub moves: Vec<String>,
+}
+
+impl Game {
+    fn new(bet_value: i32) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            bet_value,
+            ..Default::default()
+        }
+    }
+
+    fn add_player(mut self, player: Uuid) -> Self {
+        match (self.white_player, self.black_player) {
+            (None, Some(_)) => {
+                self.white_player = Some(player);
+            }
+            (Some(_), None) => {
+                self.black_player = Some(player);
+            }
+            _ => (),
+        }
+
+        self
+    }
+
+    fn has_two_players(&self) -> bool {
+        self.white_player.is_some() && self.black_player.is_some()
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -75,6 +109,66 @@ struct GameWithPlayers {
     black_player: Option<GamePlayer>,
     bet_value: i32,
     moves: Vec<String>,
+}
+
+async fn quick_pairing_game(
+    auth_user: AuthUser,
+    state: State<crate::AppState>,
+) -> Result<Json<GameBody<Uuid>>> {
+    let game = {
+        let mut room = state.pairing_room.game.lock().unwrap();
+        if room.is_some() {
+            let game = <std::option::Option<Game> as Clone>::clone(&room)
+                .unwrap()
+                .add_player(auth_user.user_id);
+            state.pairing_room.notifier.notify_waiters();
+
+            *room = None;
+
+            game
+        } else {
+            let new_game = Game::new(DEFAULT_BET_VALUE).add_player(auth_user.user_id);
+            *room = Some(new_game.clone());
+            new_game
+        }
+    };
+
+    let wait_future = async {
+        if game.has_two_players() {
+            sqlx::query(&format!( "INSERT INTO games (id, white_player, black_player, bet_value) VALUES ($1, $2, $3, $4) "))
+            .bind(game.id)
+            .bind(game.white_player.unwrap())
+            .bind(game.black_player.unwrap())
+            .bind(game.bet_value)
+            .fetch_optional(&state.db)
+            .await
+            .unwrap();
+        } else {
+            state.pairing_room.notifier.notified().await;
+        }
+
+        let mut rooms = state.rooms.as_ref().lock().unwrap();
+        let new_room = rooms
+            .entry(game.id.to_string())
+            .or_insert_with(RoomState::new);
+
+        new_room
+            .players
+            .lock()
+            .unwrap()
+            .insert(auth_user.user_id.to_string());
+    };
+
+    wait_future.await;
+
+    Ok(Json(GameBody { game: game.id }))
+}
+
+fn quick_pairing_game_docs(op: TransformOperation) -> TransformOperation {
+    op.tag("Quick Pairing")
+        .description("Quick Pair players to play")
+        .response::<200, Json<GameBody<Uuid>>>()
+        .response::<400, Json<GenericError>>()
 }
 
 async fn create_game(
@@ -125,6 +219,7 @@ async fn create_game(
             id: game_id,
             white_player,
             black_player,
+            last_move_player: None,
             bet_value: payload.game.bet_value,
             moves: vec![],
         },
@@ -189,6 +284,7 @@ async fn join_game(
             let game = Game {
                 id: game_row.get("id"),
                 white_player: game_row.get("white_player"),
+                last_move_player: None,
                 black_player: game_row.get("black_player"),
                 bet_value: game_row.get("bet_value"),
                 moves: game_row.get("moves"),
