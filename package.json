@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "dev": "concurrently --kill-others-on-fail \"pnpm client:dev\" \"pnpm server:dev\"",
     "client:dev": "pnpm -F @chesu/client run dev",
     "server:dev": "cargo run -p server",
     "schema": "sh scripts/generate_schema.sh"
