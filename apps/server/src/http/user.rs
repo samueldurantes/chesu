@@ -1,4 +1,4 @@
-use crate::http::{error::Error, extractor::AuthUser, Result};
+use crate::http::{extractor::AuthUser, Result};
 use aide::{
     axum::{routing::get_with, ApiRouter},
     transform::TransformOperation,
@@ -6,6 +6,9 @@ use aide::{
 use axum::{extract::State, Json};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sqlx::Pool;
+use sqlx::Postgres;
+use uuid::Uuid;
 
 use super::error::GenericError;
 
@@ -19,31 +22,28 @@ struct UserBody<T> {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
-struct User {
-    id: String,
-    username: String,
-    email: String,
+pub struct User {
+    pub id: String,
+    pub username: String,
+    pub email: String,
+}
+
+impl User {
+    pub async fn from_id(db: &Pool<Postgres>, id: Uuid) -> Result<User, sqlx::Error> {
+        sqlx::query_as!(
+            User,
+            r#" SELECT id, username, email FROM users WHERE id = $1 "#,
+            id,
+        )
+        .fetch_one(db)
+        .await
+    }
 }
 
 async fn me(auth_user: AuthUser, state: State<crate::AppState>) -> Result<Json<UserBody<User>>> {
-    let user = sqlx::query_as!(
-        User,
-        r#"
-            SELECT id, username, email
-            FROM users
-            WHERE id = $1
-        "#,
-        auth_user.user_id,
-    )
-    .fetch_optional(&state.db)
-    .await?;
-
-    match user {
-        Some(user) => Ok(Json(UserBody { user })),
-        None => Err(Error::NotFound {
-            message: "User not found".to_string(),
-        }),
-    }
+    Ok(Json(UserBody {
+        user: User::from_id(&state.db, auth_user.user_id).await?,
+    }))
 }
 
 fn me_docs(op: TransformOperation) -> TransformOperation {

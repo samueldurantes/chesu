@@ -89,7 +89,7 @@ export interface paths {
       responses: {
         200: {
           content: {
-            "application/json": components["schemas"]["GameBody_for_Game"];
+            "application/json": components["schemas"]["GameBody_for_Uuid"];
           };
         };
         400: {
@@ -136,7 +136,7 @@ export interface paths {
       responses: {
         200: {
           content: {
-            "application/json": components["schemas"]["GameBody_for_GameWithPlayers"];
+            "application/json": components["schemas"]["GameBody_for_Uuid"];
           };
         };
         400: {
@@ -279,24 +279,8 @@ export interface components {
       url: string;
       [key: string]: unknown;
     };
-    Game: {
-      /** Format: int32 */
-      bet_value: number;
-      /** Format: uuid */
-      black_player?: string | null;
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      last_move_player?: string | null;
-      moves: string[];
-      /** Format: uuid */
-      white_player?: string | null;
-    };
     GameBody_for_CreateGame: {
       game: components["schemas"]["CreateGame"];
-    };
-    GameBody_for_Game: {
-      game: components["schemas"]["Game"];
     };
     GameBody_for_GameWithPlayers: {
       game: components["schemas"]["GameWithPlayers"];

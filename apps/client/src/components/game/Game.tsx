@@ -2,14 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   useSuspenseQueries,
-  useMutation,
-  useQueryClient,
 } from '@tanstack/react-query';
 
 import api from '../../api/api';
 import { Board } from '../ui/Board';
 import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
 
 const Game = () => {
   const connection = useRef<WebSocket | null>(null);
@@ -113,49 +110,6 @@ const Game = () => {
     };
   }, [params, queryUser]);
 
-  const queryClient = useQueryClient();
-
-  const { mutateAsync, isPending } = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await api.POST('/game/{id}', {
-        params: {
-          path: {
-            id: params.id as string,
-          },
-        },
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['game/detail'], data);
-    },
-    onError: (error) => console.log({ error }),
-  });
-
-  const getJoinButton = () => {
-    const whitePlayer = queryGame?.game?.white_player;
-    const blackPlayer = queryGame?.game?.black_player;
-
-    if (whitePlayer?.id === queryUser?.data?.user?.id) {
-      return null;
-    }
-
-    if (blackPlayer?.id === queryUser?.data?.user?.id) {
-      return null;
-    }
-
-    return (
-      <Button onClick={() => mutateAsync()} disabled={isPending}>
-        Join
-      </Button>
-    );
-  };
-
   return (
     <div className="h-screen flex items-center justify-center gap-2 bg-[#121212]">
       <div className="flex flex-col gap-4 w-full max-w-[750px] px-6">
@@ -187,7 +141,6 @@ const Game = () => {
               {queryUser?.data?.user?.username}
             </span>
           </div>
-          {getJoinButton()}
         </Card>
       </div>
     </div>

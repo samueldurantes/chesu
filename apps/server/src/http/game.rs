@@ -1,7 +1,7 @@
-use crate::{
-    http::{error::Error, extractor::AuthUser, Result},
-    RoomState,
-};
+use crate::http::error::Error;
+use crate::http::{extractor::AuthUser, Result};
+use crate::PlayerInput;
+use crate::User;
 use aide::{
     axum::{
         routing::{get_with, post_with},
@@ -22,7 +22,6 @@ use futures::{stream::StreamExt, SinkExt};
 use rand::{seq::SliceRandom, thread_rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
@@ -68,34 +67,6 @@ pub struct Game {
     pub moves: Vec<String>,
 }
 
-impl Game {
-    fn new(bet_value: i32) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            bet_value,
-            ..Default::default()
-        }
-    }
-
-    fn add_player(mut self, player: Uuid) -> Self {
-        match (self.white_player, self.black_player) {
-            (None, Some(_)) => {
-                self.white_player = Some(player);
-            }
-            (Some(_), None) => {
-                self.black_player = Some(player);
-            }
-            _ => (),
-        }
-
-        self
-    }
-
-    fn has_two_players(&self) -> bool {
-        self.white_player.is_some() && self.black_player.is_some()
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 struct GamePlayer {
     id: Uuid,
@@ -115,53 +86,37 @@ async fn quick_pairing_game(
     auth_user: AuthUser,
     state: State<crate::AppState>,
 ) -> Result<Json<GameBody<Uuid>>> {
-    let game = {
-        let mut room = state.pairing_room.game.lock().unwrap();
-        if room.is_some() {
-            let game = <std::option::Option<Game> as Clone>::clone(&room)
-                .unwrap()
-                .add_player(auth_user.user_id);
-            state.pairing_room.notifier.notify_waiters();
+    let current_game = {
+        let mut available_game = state.available_game.lock().unwrap();
+        let current_game = available_game.clone().unwrap_or(Uuid::new_v4());
 
-            *room = None;
-
-            game
+        *available_game = if (*available_game).is_some() {
+            None
         } else {
-            let new_game = Game::new(DEFAULT_BET_VALUE).add_player(auth_user.user_id);
-            *room = Some(new_game.clone());
-            new_game
-        }
+            Some(current_game)
+        };
+
+        current_game
     };
 
-    let wait_future = async {
-        if game.has_two_players() {
-            sqlx::query(&format!( "INSERT INTO games (id, white_player, black_player, bet_value) VALUES ($1, $2, $3, $4) "))
-            .bind(game.id)
-            .bind(game.white_player.unwrap())
-            .bind(game.black_player.unwrap())
-            .bind(game.bet_value)
-            .fetch_optional(&state.db)
-            .await
-            .unwrap();
-        } else {
-            state.pairing_room.notifier.notified().await;
-        }
+    let user = sqlx::query_as!(
+        User,
+        r#"
+            WITH inserted_game AS (
+                INSERT INTO games (id, white_player, bet_value) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET black_player = $2
+            )
+            SELECT id, username, email FROM users WHERE id = $2
+        "#,
+        current_game,
+        auth_user.user_id,
+        DEFAULT_BET_VALUE,
+    )
+    .fetch_one(&state.db)
+    .await?;
 
-        let mut rooms = state.rooms.as_ref().lock().unwrap();
-        let new_room = rooms
-            .entry(game.id.to_string())
-            .or_insert_with(RoomState::new);
+    state.add_player_to_room(current_game, PlayerInput::User(user))?;
 
-        new_room
-            .players
-            .lock()
-            .unwrap()
-            .insert(auth_user.user_id.to_string());
-    };
-
-    wait_future.await;
-
-    Ok(Json(GameBody { game: game.id }))
+    Ok(Json(GameBody { game: current_game }))
 }
 
 fn quick_pairing_game_docs(op: TransformOperation) -> TransformOperation {
@@ -171,65 +126,44 @@ fn quick_pairing_game_docs(op: TransformOperation) -> TransformOperation {
         .response::<400, Json<GenericError>>()
 }
 
-async fn create_game(
-    auth_user: AuthUser,
-    state: State<crate::AppState>,
-    payload: Json<GameBody<CreateGame>>,
-) -> Result<Json<GameBody<Game>>> {
-    let color_column = match payload.game.color_preference.as_deref() {
+fn pick_color(color_preference: Option<&str>) -> String {
+    match color_preference {
         Some("white") => "white_player",
         Some("black") => "black_player",
         _ => {
             let choices = ["white_player", "black_player"];
             *choices.choose(&mut thread_rng()).unwrap()
         }
-    };
+    }
+    .to_string()
+}
 
-    let game_id: Uuid = sqlx::query(&format!(
-        "INSERT INTO games ({color_column}, bet_value) VALUES ($1, $2) RETURNING id"
+async fn create_game(
+    auth_user: AuthUser,
+    state: State<crate::AppState>,
+    payload: Json<GameBody<CreateGame>>,
+) -> Result<Json<GameBody<Uuid>>> {
+    let game_id = Uuid::new_v4();
+
+    sqlx::query(&format!(
+        "INSERT INTO games (id, {}, bet_value) VALUES ($1, $2, $3)",
+        pick_color(payload.game.color_preference.as_deref())
     ))
+    .bind(game_id)
     .bind(auth_user.user_id)
     .bind(payload.game.bet_value)
-    .fetch_one(&state.db)
-    .await?
-    .get("id");
+    .fetch_optional(&state.db)
+    .await?;
 
-    let mut white_player: Option<Uuid> = None;
-    let mut black_player: Option<Uuid> = None;
+    state.add_player_to_room(game_id, PlayerInput::Id(auth_user.user_id))?;
 
-    if color_column == "white_player" {
-        white_player = Some(auth_user.user_id);
-    } else {
-        black_player = Some(auth_user.user_id);
-    };
-
-    let mut rooms = state.rooms.as_ref().lock().unwrap();
-    let new_room = rooms
-        .entry(game_id.to_string())
-        .or_insert_with(RoomState::new);
-
-    new_room
-        .players
-        .lock()
-        .unwrap()
-        .insert(auth_user.user_id.to_string());
-
-    Ok(Json(GameBody {
-        game: Game {
-            id: game_id,
-            white_player,
-            black_player,
-            last_move_player: None,
-            bet_value: payload.game.bet_value,
-            moves: vec![],
-        },
-    }))
+    Ok(Json(GameBody { game: game_id }))
 }
 
 fn create_game_docs(op: TransformOperation) -> TransformOperation {
     op.tag("Game")
         .description("Create a game")
-        .response::<200, Json<GameBody<Game>>>()
+        .response::<200, Json<GameBody<Uuid>>>()
         .response::<400, Json<GenericError>>()
 }
 
@@ -237,117 +171,39 @@ async fn join_game(
     auth_user: AuthUser,
     state: State<crate::AppState>,
     Path(GameID { id: game_id }): Path<GameID>,
-) -> Result<Json<GameBody<GameWithPlayers>>> {
+) -> Result<Json<GameBody<Uuid>>> {
     let game_id = Uuid::parse_str(&game_id).map_err(|_| Error::BadRequest {
         message: "Invalid game id".to_string(),
     })?;
 
-    let game = sqlx::query_as!(
-        Game,
+    let user = sqlx::query_as!(
+        User,
         r#"
-            SELECT id, white_player, black_player, bet_value, last_move_player, moves
-            FROM games
+        WITH updated_game AS (
+            UPDATE games
+            SET 
+                white_player = COALESCE(white_player, $2),
+                black_player = COALESCE(black_player, $2)
             WHERE id = $1
-        "#,
+            RETURNING id
+        )
+        SELECT id, username, email FROM users WHERE id = $2
+    "#,
         game_id,
+        auth_user.user_id
     )
-    .fetch_optional(&state.db)
+    .fetch_one(&state.db)
     .await?;
 
-    match game {
-        Some(game) => {
-            if game.black_player.is_some() && game.white_player.is_some() {
-                return Err(Error::BadRequest {
-                    message: "Game is full".to_string(),
-                });
-            }
+    state.add_player_to_room(game_id, PlayerInput::User(user))?;
 
-            let color_column = if game.white_player.is_none() {
-                "white_player"
-            } else {
-                "black_player"
-            };
-
-            let game_row = sqlx::query(&format!(
-                r#"
-                    UPDATE games
-                    SET {color_column} = $1
-                    WHERE id = $2
-                    RETURNING id, white_player, black_player, bet_value, moves
-                "#
-            ))
-            .bind(auth_user.user_id)
-            .bind(game_id)
-            .fetch_one(&state.db)
-            .await?;
-
-            let game = Game {
-                id: game_row.get("id"),
-                white_player: game_row.get("white_player"),
-                last_move_player: None,
-                black_player: game_row.get("black_player"),
-                bet_value: game_row.get("bet_value"),
-                moves: game_row.get("moves"),
-            };
-
-            let white_player = sqlx::query_as!(
-                GamePlayer,
-                r#"
-                    SELECT id, username
-                    FROM users
-                    WHERE id = $1
-                "#,
-                game.white_player,
-            )
-            .fetch_optional(&state.db)
-            .await?;
-
-            let black_player = sqlx::query_as!(
-                GamePlayer,
-                r#"
-                    SELECT id, username
-                    FROM users
-                    WHERE id = $1
-                "#,
-                game.black_player,
-            )
-            .fetch_optional(&state.db)
-            .await?;
-
-            let mut rooms = state.rooms.as_ref().lock().unwrap();
-
-            if let Some(room) = rooms.get_mut(&game_id.to_string()) {
-                let mut room_players = room.players.lock().unwrap();
-
-                if room_players.len() > 2 {
-                    return Err(Error::BadRequest {
-                        message: "Game is full".to_string(),
-                    });
-                }
-
-                room_players.insert(auth_user.user_id.to_string());
-            }
-
-            Ok(Json(GameBody {
-                game: GameWithPlayers {
-                    id: game.id,
-                    white_player,
-                    black_player,
-                    bet_value: game.bet_value,
-                    moves: game.moves,
-                },
-            }))
-        }
-        None => Err(Error::NotFound {
-            message: "Game not found".to_string(),
-        }),
-    }
+    Ok(Json(GameBody { game: game_id }))
 }
 
 fn join_game_docs(op: TransformOperation) -> TransformOperation {
     op.tag("Game")
         .description("Join a game")
-        .response::<200, Json<GameBody<GameWithPlayers>>>()
+        .response::<200, Json<GameBody<Uuid>>>()
         .response::<400, Json<GenericError>>()
         .response::<404, Json<GenericError>>()
 }
