@@ -1,5 +1,7 @@
+use crate::http::error::Error;
 use crate::http::{extractor::AuthUser, Result};
-use crate::{http::error::Error, RoomState};
+use crate::PlayerInput;
+use crate::User;
 use aide::{
     axum::{
         routing::{get_with, post_with},
@@ -20,7 +22,6 @@ use futures::{stream::StreamExt, SinkExt};
 use rand::{seq::SliceRandom, thread_rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
@@ -98,29 +99,22 @@ async fn quick_pairing_game(
         current_game
     };
 
-    let username: String = sqlx::query(
-        "WITH inserted_game AS (
-            INSERT INTO games (id, white_player, bet_value) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET black_player = $2
-        )
-        SELECT (username) FROM users WHERE id = $2",
+    let user = sqlx::query_as!(
+        User,
+        r#"
+            WITH inserted_game AS (
+                INSERT INTO games (id, white_player, bet_value) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET black_player = $2
+            )
+            SELECT id, username, email FROM users WHERE id = $2
+        "#,
+        current_game,
+        auth_user.user_id,
+        DEFAULT_BET_VALUE,
     )
-    .bind(current_game)
-    .bind(auth_user.user_id)
-    .bind(DEFAULT_BET_VALUE)
     .fetch_one(&state.db)
-    .await?.get(0);
+    .await?;
 
-    let mut rooms = state.rooms.as_ref().lock().unwrap();
-    let room = rooms
-        .entry(current_game.to_string())
-        .or_insert_with(RoomState::new);
-    let mut room_players = room.players.lock().unwrap();
-
-    room_players.insert(auth_user.user_id.to_string());
-
-    if room_players.len() == 2 {
-        notify_other_player(&room, username);
-    }
+    state.add_player_to_room(current_game, PlayerInput::User(user))?;
 
     Ok(Json(GameBody { game: current_game }))
 }
@@ -149,26 +143,19 @@ async fn create_game(
     state: State<crate::AppState>,
     payload: Json<GameBody<CreateGame>>,
 ) -> Result<Json<GameBody<Uuid>>> {
-    let game_id: Uuid = sqlx::query(&format!(
-        "INSERT INTO games ({}, bet_value) VALUES ($1, $2) RETURNING id",
+    let game_id = Uuid::new_v4();
+
+    sqlx::query(&format!(
+        "INSERT INTO games (id, {}, bet_value) VALUES ($1, $2, $3)",
         pick_color(payload.game.color_preference.as_deref())
     ))
+    .bind(game_id)
     .bind(auth_user.user_id)
     .bind(payload.game.bet_value)
-    .fetch_one(&state.db)
-    .await?
-    .get("id");
+    .fetch_optional(&state.db)
+    .await?;
 
-    let mut rooms = state.rooms.as_ref().lock().unwrap();
-    let new_room = rooms
-        .entry(game_id.to_string())
-        .or_insert_with(RoomState::new);
-
-    new_room
-        .players
-        .lock()
-        .unwrap()
-        .insert(auth_user.user_id.to_string());
+    state.add_player_to_room(game_id, PlayerInput::Id(auth_user.user_id))?;
 
     Ok(Json(GameBody { game: game_id }))
 }
@@ -180,20 +167,6 @@ fn create_game_docs(op: TransformOperation) -> TransformOperation {
         .response::<400, Json<GenericError>>()
 }
 
-fn notify_other_player(room: &RoomState, username: String) {
-    room.tx
-        .send(
-            serde_json::json!({
-               "event": "join",
-               "data": {
-                 "username": username
-                }
-            })
-            .to_string(),
-        )
-        .expect("Error on notify other player!");
-}
-
 async fn join_game(
     auth_user: AuthUser,
     state: State<crate::AppState>,
@@ -203,7 +176,8 @@ async fn join_game(
         message: "Invalid game id".to_string(),
     })?;
 
-    let username = sqlx::query!(
+    let user = sqlx::query_as!(
+        User,
         r#"
         WITH updated_game AS (
             UPDATE games
@@ -213,31 +187,15 @@ async fn join_game(
             WHERE id = $1
             RETURNING id
         )
-        SELECT u.username
-        FROM updated_game g
-        JOIN users u ON u.id = $2
+        SELECT id, username, email FROM users WHERE id = $2
     "#,
         game_id,
         auth_user.user_id
     )
     .fetch_one(&state.db)
-    .await?
-    .username;
+    .await?;
 
-    let mut rooms = state.rooms.as_ref().lock().unwrap();
-
-    if let Some(room) = rooms.get_mut(&game_id.to_string()) {
-        let mut room_players = room.players.lock().unwrap();
-
-        if room_players.len() > 2 {
-            return Err(Error::BadRequest {
-                message: "Game is full".to_string(),
-            });
-        }
-
-        room_players.insert(auth_user.user_id.to_string());
-        notify_other_player(&room, username);
-    }
+    state.add_player_to_room(game_id, PlayerInput::User(user))?;
 
     Ok(Json(GameBody { game: game_id }))
 }
