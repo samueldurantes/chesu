@@ -1,11 +1,6 @@
 use server::AppState;
 use sqlx::postgres::PgPoolOptions;
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -22,21 +17,17 @@ async fn main() -> anyhow::Result<()> {
 
     sqlx::migrate!().run(&db).await?;
 
-    let state = AppState {
-        db,
-        rooms: Arc::new(Mutex::new(HashMap::new())),
-        available_game: Arc::new(Mutex::new(None::<Uuid>)),
-    };
-
     let (app, _) = server::app::make_app();
-    let app = app.with_state(state);
 
     let listener =
         tokio::net::TcpListener::bind(&std::env::var("SERVER_URL").expect("SERVER_URL is void"))
             .await
             .unwrap();
+
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app.with_state(AppState::new(db)))
+        .await
+        .unwrap();
 
     Ok(())
 }
