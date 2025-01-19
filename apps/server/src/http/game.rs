@@ -1,7 +1,5 @@
-use crate::{
-    http::{error::Error, extractor::AuthUser, Result},
-    RoomState,
-};
+use crate::http::{extractor::AuthUser, Result};
+use crate::{http::error::Error, RoomState};
 use aide::{
     axum::{
         routing::{get_with, post_with},
@@ -68,34 +66,6 @@ pub struct Game {
     pub moves: Vec<String>,
 }
 
-impl Game {
-    fn new(bet_value: i32) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            bet_value,
-            ..Default::default()
-        }
-    }
-
-    fn add_player(mut self, player: Uuid) -> Self {
-        match (self.white_player, self.black_player) {
-            (None, Some(_)) => {
-                self.white_player = Some(player);
-            }
-            (Some(_), None) => {
-                self.black_player = Some(player);
-            }
-            _ => (),
-        }
-
-        self
-    }
-
-    fn has_two_players(&self) -> bool {
-        self.white_player.is_some() && self.black_player.is_some()
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 struct GamePlayer {
     id: Uuid,
@@ -115,53 +85,44 @@ async fn quick_pairing_game(
     auth_user: AuthUser,
     state: State<crate::AppState>,
 ) -> Result<Json<GameBody<Uuid>>> {
-    let game = {
-        let mut room = state.pairing_room.game.lock().unwrap();
-        if room.is_some() {
-            let game = <std::option::Option<Game> as Clone>::clone(&room)
-                .unwrap()
-                .add_player(auth_user.user_id);
-            state.pairing_room.notifier.notify_waiters();
+    let current_game = {
+        let mut available_game = state.available_game.lock().unwrap();
+        let current_game = available_game.clone().unwrap_or(Uuid::new_v4());
 
-            *room = None;
-
-            game
+        *available_game = if (*available_game).is_some() {
+            None
         } else {
-            let new_game = Game::new(DEFAULT_BET_VALUE).add_player(auth_user.user_id);
-            *room = Some(new_game.clone());
-            new_game
-        }
+            Some(current_game)
+        };
+
+        current_game
     };
 
-    let wait_future = async {
-        if game.has_two_players() {
-            sqlx::query(&format!( "INSERT INTO games (id, white_player, black_player, bet_value) VALUES ($1, $2, $3, $4) "))
-            .bind(game.id)
-            .bind(game.white_player.unwrap())
-            .bind(game.black_player.unwrap())
-            .bind(game.bet_value)
-            .fetch_optional(&state.db)
-            .await
-            .unwrap();
-        } else {
-            state.pairing_room.notifier.notified().await;
-        }
+    let username: String = sqlx::query(
+        "WITH inserted_game AS (
+            INSERT INTO games (id, white_player, bet_value) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET black_player = $2
+        )
+        SELECT (username) FROM users WHERE id = $2",
+    )
+    .bind(current_game)
+    .bind(auth_user.user_id)
+    .bind(DEFAULT_BET_VALUE)
+    .fetch_one(&state.db)
+    .await?.get(0);
 
-        let mut rooms = state.rooms.as_ref().lock().unwrap();
-        let new_room = rooms
-            .entry(game.id.to_string())
-            .or_insert_with(RoomState::new);
+    let mut rooms = state.rooms.as_ref().lock().unwrap();
+    let room = rooms
+        .entry(current_game.to_string())
+        .or_insert_with(RoomState::new);
+    let mut room_players = room.players.lock().unwrap();
 
-        new_room
-            .players
-            .lock()
-            .unwrap()
-            .insert(auth_user.user_id.to_string());
-    };
+    room_players.insert(auth_user.user_id.to_string());
 
-    wait_future.await;
+    if room_players.len() == 2 {
+        notify_other_player(&room, username);
+    }
 
-    Ok(Json(GameBody { game: game.id }))
+    Ok(Json(GameBody { game: current_game }))
 }
 
 fn quick_pairing_game_docs(op: TransformOperation) -> TransformOperation {

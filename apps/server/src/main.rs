@@ -4,8 +4,8 @@ use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
-use tokio::sync::Notify;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -25,10 +25,7 @@ async fn main() -> anyhow::Result<()> {
     let state = AppState {
         db,
         rooms: Arc::new(Mutex::new(HashMap::new())),
-        pairing_room: Arc::new(server::PairingRoom {
-            game: Mutex::new(None),
-            notifier: Notify::new(),
-        }),
+        available_game: Arc::new(Mutex::new(None::<Uuid>)),
     };
 
     let (app, _) = server::app::make_app();
