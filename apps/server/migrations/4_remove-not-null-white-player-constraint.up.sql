@@ -1,0 +1,1 @@
+ALTER TABLE games ALTER COLUMN white_player DROP NOT NULL;
