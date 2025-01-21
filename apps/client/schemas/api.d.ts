@@ -10,6 +10,70 @@ type XOR<T, U> = (T | U) extends object ? (Without<T, U> & U) | (Without<U, T> &
 type OneOf<T extends any[]> = T extends [infer Only] ? Only : T extends [infer A, infer B, ...infer Rest] ? OneOf<[XOR<A, B>, ...Rest]> : never;
 
 export interface paths {
+  "/invoice/create": {
+    /** @description Create an invoice to deposit satoshis */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["AmountBody"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["InvoiceBody"];
+          };
+        };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
+      };
+    };
+  };
+  "/invoice/settled": {
+    /** @description Confirms deposit */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["InvoiceInfo"];
+        };
+      };
+      responses: {
+        /** @description no content */
+        200: {
+          content: never;
+        };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
+      };
+    };
+  };
+  "/invoice/withdraw": {
+    /** @description Confirms deposit payment */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["InvoiceBody"];
+        };
+      };
+      responses: {
+        /** @description no content */
+        200: {
+          content: never;
+        };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
+      };
+    };
+  };
   "/auth/register": {
     /** @description Register an user */
     post: {
@@ -160,7 +224,7 @@ export interface paths {
       responses: {
         200: {
           content: {
-            "application/json": components["schemas"]["UserBody_for_User2"];
+            "application/json": components["schemas"]["UserBody_for_UserWithBalance"];
           };
         };
         404: {
@@ -177,6 +241,10 @@ export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
+    AmountBody: {
+      /** Format: int32 */
+      amount: number;
+    };
     /** @enum {string} */
     ApiKeyLocation: "query" | "header" | "cookie";
     /** @description Holds a set of reusable objects for different aspects of the OAS. All objects defined within the components object will have no effect on the API unless they are explicitly referenced from properties outside the components object. */
@@ -362,6 +430,14 @@ export interface components {
      * @enum {string}
      */
     InstanceType: "null" | "boolean" | "object" | "array" | "number" | "string" | "integer";
+    InvoiceBody: {
+      invoice: string;
+    };
+    InvoiceInfo: {
+      /** Format: int32 */
+      amount: number;
+      memo: string;
+    };
     /** @description License information for the exposed API. */
     License: {
       /** @description An [SPDX](https://spdx.org/spdx-specification-21-web-version#h.jxpfx0ykyb60) license expression for the API. The `identifier` field is mutually exclusive of the `url` field. */
@@ -1146,11 +1222,6 @@ export interface components {
       id: string;
       username: string;
     };
-    User2: {
-      email: string;
-      id: string;
-      username: string;
-    };
     UserBody_for_LoginUser: {
       user: components["schemas"]["LoginUser"];
     };
@@ -1160,8 +1231,15 @@ export interface components {
     UserBody_for_User: {
       user: components["schemas"]["User"];
     };
-    UserBody_for_User2: {
-      user: components["schemas"]["User2"];
+    UserBody_for_UserWithBalance: {
+      user: components["schemas"]["UserWithBalance"];
+    };
+    UserWithBalance: {
+      /** Format: int32 */
+      balance: number;
+      email: string;
+      id: string;
+      username: string;
     };
   };
   responses: never;
