@@ -88,6 +88,8 @@ async fn register(
         Ok(user_id) => {
             let token = AuthUser { user_id }.to_jwt();
 
+            sqlx::query!(r#" INSERT INTO transactions (user_id, type, amount, last_balance) VALUES ( $1, 'input', 0, 0); "#, user_id).execute(&state.db).await?;
+
             Ok((
                 AppendHeaders([(SET_COOKIE, build_set_cookie(token))]),
                 Json(UserBody {
