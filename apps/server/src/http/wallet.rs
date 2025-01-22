@@ -106,30 +106,68 @@ async fn withdraw(
         .unwrap_or(0)
         / 1000) as i32;
 
-    if amount <= 0 {
+    let last_balance = sqlx::query_scalar!(
+        r#" SELECT last_balance FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#,
+        auth_user.user_id
+    )
+    .fetch_one(&state.db)
+    .await?;
+
+    if amount <= 0 || amount > last_balance {
         return Err(Error::BadRequest {
             message: String::from("Invalid invoice input"),
         });
     }
-    // TODO: Create Query Invoice
 
-    sqlx::query!(
+    struct TransacionID {
+        id: uuid::Uuid,
+    }
+
+    let TransacionID { id } = sqlx::query_as!(
+        TransacionID,
         r#"
             WITH last_transaction AS (
-                SELECT COALESCE(last_balance, 0) AS last_balance
+                SELECT last_balance
                 FROM transactions
                 WHERE user_id = $1
                 ORDER BY created_at DESC
                 LIMIT 1
             )
             INSERT INTO transactions (user_id, type, amount, last_balance)
-            VALUES ( $1, 'output', $2, (SELECT last_balance FROM last_transaction) - $2);
+            VALUES ($1, 'output', $2, (SELECT last_balance FROM last_transaction) - $2)
+            RETURNING id;
     "#,
         auth_user.user_id,
         amount
     )
     .fetch_one(&state.db)
     .await?;
+
+    let client = Client::new();
+    let token = format!(
+        "Bearer {}",
+        &std::env::var("LSP_TOKEN").expect("LSP_TOKEN is void")
+    );
+
+    let response = client
+        .post("https://api.getalby.com/payments/bolt11")
+        .header("Authorization", token)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|_| Error::BadRequest {
+            message: String::from("Invalid invoice input"),
+        })?;
+
+    if !response.status().is_success() {
+        sqlx::query!(r#" DELETE FROM transactions WHERE id = $1 "#, id)
+            .execute(&state.db)
+            .await?;
+
+        return Err(Error::BadRequest {
+            message: String::from("Invalid invoice input"),
+        });
+    }
 
     Ok(())
 }
