@@ -57,10 +57,8 @@ struct InvoiceBuilder {
     memo: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
-struct InvoiceInfo {
-    amount: i32,
-    memo: String,
+#[derive(Serialize, Deserialize, JsonSchema)]
+struct InvoiceSettled {
     payment_request: String,
 }
 
@@ -182,12 +180,15 @@ fn withdraw_docs(op: TransformOperation) -> TransformOperation {
 // TODO: Set cors to lsp origin
 async fn deposit_webhook_handler(
     state: State<crate::AppState>,
-    Json(payload): Json<InvoiceInfo>,
+    Json(payload): Json<InvoiceSettled>,
 ) -> Result<()> {
-    let user_id = AuthUser::from_jwt(&payload.memo)?.user_id;
+    let invoice = Bolt11Invoice::from_str(&payload.payment_request).unwrap();
+
+    let user_id = uuid::Uuid::from_str(&invoice.description().to_string()).unwrap();
+    let amount = (invoice.amount_milli_satoshis().unwrap() / 1000) as i32;
 
     sqlx::query!(
-        r#" 
+        r#"
             WITH last_transaction AS (
                 SELECT last_balance AS last_balance
                 FROM transactions
@@ -199,7 +200,7 @@ async fn deposit_webhook_handler(
             VALUES ( $1, 'input', $2, (SELECT last_balance FROM last_transaction) + $2, $3);
         "#,
         user_id,
-        payload.amount,
+        amount,
         payload.payment_request
     )
     .execute(&state.db)
@@ -228,7 +229,7 @@ async fn create_deposit_invoice(
 
     let invoice_builder = InvoiceBuilder {
         amount: payload.amount,
-        memo: auth_user.to_jwt(),
+        memo: auth_user.user_id.to_string(),
     };
 
     let client = Client::new();
