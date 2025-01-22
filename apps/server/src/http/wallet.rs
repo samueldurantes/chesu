@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::http::error::Error;
 use crate::http::{extractor::AuthUser, Result};
 use aide::{
-    axum::{routing::post_with, ApiRouter},
+    axum::{routing::get_with, routing::post_with, ApiRouter},
     transform::TransformOperation,
 };
 use axum::extract::State;
@@ -25,12 +25,20 @@ pub(crate) fn router() -> ApiRouter<crate::AppState> {
             "/invoice/settled",
             post_with(deposit_webhook_handler, deposit_webhook_handler_docs),
         )
+        .api_route(
+            "/invoice/check",
+            get_with(check_invoice, check_invoice_docs),
+        )
         .api_route("/invoice/withdraw", post_with(withdraw, withdraw_docs))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 struct InvoiceBody {
     invoice: String,
+}
+
+struct InvoiceField {
+    invoice: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -52,6 +60,30 @@ struct InvoiceInfo {
 #[derive(Serialize, Deserialize, JsonSchema)]
 struct InvoiceResponseBody {
     payment_request: String,
+}
+
+async fn check_invoice(
+    auth_user: AuthUser,
+    state: State<crate::AppState>,
+) -> Result<Json<InvoiceBody>> {
+    let result = sqlx::query_as!(
+        InvoiceField,
+        r#" SELECT (invoice) FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#,
+        auth_user.user_id
+    )
+    .fetch_optional(&state.db)
+    .await?.unwrap_or( InvoiceField { invoice: None });
+
+    Ok(Json(InvoiceBody {
+        invoice: result.invoice.unwrap_or(String::from("")),
+    }))
+}
+
+fn check_invoice_docs(op: TransformOperation) -> TransformOperation {
+    op.tag("Check Invoice")
+        .description("Check invoice payment")
+        .response::<200, Json<InvoiceBody>>()
+        .response::<400, Json<GenericError>>()
 }
 
 async fn withdraw(
