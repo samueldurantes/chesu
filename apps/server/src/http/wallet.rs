@@ -52,9 +52,16 @@ struct BalanceBody {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
+struct InvoiceBuilder {
+    amount: i32,
+    memo: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 struct InvoiceInfo {
     amount: i32,
     memo: String,
+    payment_request: String,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -104,6 +111,7 @@ async fn withdraw(
             message: String::from("Invalid invoice input"),
         });
     }
+    // TODO: Create Query Invoice
 
     sqlx::query!(
         r#"
@@ -143,17 +151,18 @@ async fn deposit_webhook_handler(
     sqlx::query!(
         r#" 
             WITH last_transaction AS (
-                SELECT COALESCE(last_balance, 0) AS last_balance
+                SELECT last_balance AS last_balance
                 FROM transactions
                 WHERE user_id = $1
                 ORDER BY created_at DESC
                 LIMIT 1
             )
-            INSERT INTO transactions (user_id, type, amount, last_balance)
-            VALUES ( $1, 'input', $2, (SELECT last_balance FROM last_transaction) + $2);
+            INSERT INTO transactions (user_id, type, amount, last_balance, invoice)
+            VALUES ( $1, 'input', $2, (SELECT last_balance FROM last_transaction) + $2, $3);
         "#,
         user_id,
-        payload.amount
+        payload.amount,
+        payload.payment_request
     )
     .execute(&state.db)
     .await?;
