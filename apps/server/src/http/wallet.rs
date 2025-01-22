@@ -188,19 +188,20 @@ async fn create_deposit_invoice(
         });
     }
 
-    let invoice_builder = InvoiceInfo {
+    let invoice_builder = InvoiceBuilder {
         amount: payload.amount,
         memo: auth_user.to_jwt(),
     };
 
     let client = Client::new();
+    let token = format!(
+        "Bearer {}",
+        &std::env::var("LSP_TOKEN").expect("LSP_TOKEN is void")
+    );
 
     let response = client
         .post("https://api.getalby.com/invoices")
-        .header(
-            "Bearer",
-            &std::env::var("LSP_TOKEN").expect("LSP_TOKEN is void"),
-        )
+        .header("Authorization", token)
         .json(&invoice_builder)
         .send()
         .await
