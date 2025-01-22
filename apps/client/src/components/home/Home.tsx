@@ -16,7 +16,7 @@ const Home = () => {
     <div className="flex min-h-screen flex-col items-center gap-2 bg-[#121212]">
       <Header user={query?.data?.user} />
 
-      <div className="w-screen flex items-center justify-center gap-2">
+      <div className="w-screen mb-8 flex items-center justify-center gap-2">
         <div className="flex flex-col gap-4 w-full max-w-[750px] px-6">
           <Card className="flex items-center gap-2 p-4 bg-[#1e1e1e]">
             <div className="bg-white h-[50px] w-[50px]"></div>

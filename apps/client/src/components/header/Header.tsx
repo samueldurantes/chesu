@@ -31,11 +31,11 @@ const Header = ({ user }: HeaderProps) => {
   return (
     <div className="h-32 w-screen flex items-center justify-between gap-2">
       <div
-        className="select-none hover:cursor-pointer text-white pl-6 pr-6 m-8 text-4xl font-teko font-medium"
+        className="select-none hover:cursor-pointer text-white px-6 m-8 text-4xl font-teko font-medium"
         onClick={() => { navigate('/') }}
       >/ Chesu</div>
       <DropdownMenu>
-        <DropdownMenuTrigger className="hover:cursor-pointer select-none m-8 p-6 pt-2 pb-2 text-white text-xl focus:outline-none font-sans">
+        <DropdownMenuTrigger className="hover:cursor-pointer select-none m-8 px-6 text-white text-xl focus:outline-none font-sans">
           {user?.username}
         </DropdownMenuTrigger>
         <DropdownMenuContent className="bg-white m-8 mt-2 rounded-lg p-4">
