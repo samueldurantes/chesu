@@ -5,6 +5,7 @@ import { useState } from "react";
 import DepositDialog from "../wallet/DepositDialog";
 import { useMutation } from "@tanstack/react-query";
 import api from "../../api/api";
+import WithdrawDialog from "../wallet/WithdrawDeposit";
 
 interface UserInfo {
   id: string;
@@ -19,7 +20,7 @@ interface HeaderProps {
 
 const Header = ({ user }: HeaderProps) => {
   const [openDeposit, setOpenDeposit] = useState(false);
-  // const { openWithdraw, setOpenWithdraw } = useState(false);
+  const [openWithdraw, setOpenWithdraw] = useState(false);
 
   const navigate = useNavigate();
 
@@ -53,7 +54,7 @@ const Header = ({ user }: HeaderProps) => {
 
             <DropdownMenuItem
               className="hover:cursor-pointer font-light p-1 pl-2 text-md"
-              onClick={() => { }}
+              onClick={() => { setOpenWithdraw(true) }}
             >
               Withdraw
             </DropdownMenuItem>
@@ -67,6 +68,7 @@ const Header = ({ user }: HeaderProps) => {
         </DropdownMenuContent>
       </DropdownMenu>
       <DepositDialog open={openDeposit} setOpen={setOpenDeposit} />
+      <WithdrawDialog open={openWithdraw} setOpen={setOpenWithdraw} />
     </div >
   );
 };
