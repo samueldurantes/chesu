@@ -53,6 +53,23 @@ export interface paths {
       };
     };
   };
+  "/invoice/check": {
+    /** @description Check invoice payment */
+    get: {
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["InvoiceBody"];
+          };
+        };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
+      };
+    };
+  };
   "/invoice/withdraw": {
     /** @description Confirms deposit payment */
     post: {
@@ -114,6 +131,22 @@ export interface paths {
           content: {
             "application/json": components["schemas"]["UserBody_for_User"];
           };
+        };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
+      };
+    };
+  };
+  "/auth/logout": {
+    /** @description Logout user */
+    get: {
+      responses: {
+        /** @description no content */
+        200: {
+          content: never;
         };
         400: {
           content: {
@@ -437,6 +470,7 @@ export interface components {
       /** Format: int32 */
       amount: number;
       memo: string;
+      payment_request: string;
     };
     /** @description License information for the exposed API. */
     License: {

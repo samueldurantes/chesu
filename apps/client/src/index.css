@@ -4,6 +4,21 @@
 @tailwind components;
 @tailwind utilities;
 
+input[type='number'] {
+  -moz-appearance: textfield;
+  -webkit-appearance: textfield;
+  appearance: textfield;
+}
+
+body {
+  user-select: none;
+}
+
+input,
+textarea {
+  user-select: text;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
