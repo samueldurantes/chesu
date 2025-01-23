@@ -37,6 +37,8 @@ pub fn make_app() -> (Router<AppState>, OpenApi) {
 
     let mut api = OpenApi::default();
     let app = ApiRouter::new()
+        // Wallet routes
+        .merge(http::wallet::router())
         // Auth routes
         .merge(http::auth::router())
         // Docs routes

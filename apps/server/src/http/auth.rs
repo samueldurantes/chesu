@@ -1,6 +1,6 @@
 use crate::http::{error::Error, extractor::AuthUser, Result};
 use aide::{
-    axum::{routing::post_with, ApiRouter},
+    axum::{routing::get_with, routing::post_with, ApiRouter},
     transform::TransformOperation,
 };
 use anyhow::Context;
@@ -11,9 +11,10 @@ use axum::{
     response::AppendHeaders,
     Json,
 };
-use axum_extra::extract::cookie::Cookie;
+use axum_extra::extract::cookie::{Cookie, SameSite};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sqlx::types::time::OffsetDateTime;
 use validator::Validate;
 
 use super::{error::GenericError, extractor::COOKIE_NAME};
@@ -22,6 +23,7 @@ pub(crate) fn router() -> ApiRouter<crate::AppState> {
     ApiRouter::new()
         .api_route("/auth/register", post_with(register, register_docs))
         .api_route("/auth/login", post_with(login, login_docs))
+        .api_route("/auth/logout", get_with(logout, logout_docs))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -52,13 +54,25 @@ struct User {
     email: String,
 }
 
-fn build_set_cookie(token: String) -> String {
-    let cookie = Cookie::build((COOKIE_NAME, token))
+fn build_set_cookie(token: Option<String>) -> String {
+    let cookie = Cookie::build((COOKIE_NAME, token.unwrap_or_default()))
         .path("/")
         .secure(true)
-        .http_only(true);
+        .http_only(true)
+        .same_site(SameSite::Strict);
 
     cookie.to_string()
+}
+
+async fn logout() -> Result<(AppendHeaders<[(HeaderName, String); 1]>, ())> {
+    Ok((AppendHeaders([(SET_COOKIE, build_set_cookie(None))]), ()))
+}
+
+fn logout_docs(op: TransformOperation) -> TransformOperation {
+    op.tag("Logout")
+        .description("Logout user")
+        .response::<200, ()>()
+        .response::<400, Json<GenericError>>()
 }
 
 async fn register(
@@ -88,8 +102,10 @@ async fn register(
         Ok(user_id) => {
             let token = AuthUser { user_id }.to_jwt();
 
+            sqlx::query!(r#" INSERT INTO transactions (user_id, type, amount, last_balance) VALUES ( $1, 'input', 0, 0); "#, user_id).execute(&state.db).await?;
+
             Ok((
-                AppendHeaders([(SET_COOKIE, build_set_cookie(token))]),
+                AppendHeaders([(SET_COOKIE, build_set_cookie(Some(token)))]),
                 Json(UserBody {
                     user: User {
                         id: user_id.to_string(),
@@ -149,7 +165,7 @@ async fn login(
     let token = AuthUser { user_id: user.id }.to_jwt();
 
     Ok((
-        AppendHeaders([(SET_COOKIE, build_set_cookie(token))]),
+        AppendHeaders([(SET_COOKIE, build_set_cookie(Some(token)))]),
         Json(UserBody {
             user: User {
                 id: user.id.to_string(),
