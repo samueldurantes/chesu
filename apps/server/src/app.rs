@@ -1,4 +1,5 @@
-use crate::{http, AppState};
+use crate::routes;
+use crate::AppState;
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
 use axum::{
     http::{
@@ -7,6 +8,7 @@ use axum::{
     },
     Extension, Router,
 };
+use sqlx::{Pool, Postgres};
 use std::{sync::Arc, time::Duration};
 use tower_http::{
     catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
@@ -25,7 +27,7 @@ pub fn get_dotenv_path() -> String {
         .to_string()
 }
 
-pub fn make_app() -> (Router<AppState>, OpenApi) {
+pub fn make_app(db: Pool<Postgres>) -> (Router<AppState>, OpenApi) {
     dotenvy::from_path(get_dotenv_path()).expect(".env file not found");
     let client_url = &std::env::var("CLIENT_URL").expect("CLIENT_URL is void");
 
@@ -37,16 +39,7 @@ pub fn make_app() -> (Router<AppState>, OpenApi) {
 
     let mut api = OpenApi::default();
     let app = ApiRouter::new()
-        // Wallet routes
-        .merge(http::wallet::router())
-        // Auth routes
-        .merge(http::auth::router())
-        // Docs routes
-        .merge(http::docs::router())
-        // Game routes
-        .merge(http::game::router())
-        // User routes
-        .merge(http::user::router())
+        .merge(routes::router(db))
         .finish_api_with(&mut api, api_docs)
         .layer((
             SetSensitiveHeadersLayer::new([AUTHORIZATION]),

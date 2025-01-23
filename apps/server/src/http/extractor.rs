@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use uuid::Uuid;
 
-pub(crate) static COOKIE_NAME: &str = "CHESU_TOKEN";
+pub static COOKIE_NAME: &str = "CHESU_TOKEN";
 
 #[derive(aide::OperationIo)]
 pub struct AuthUser {

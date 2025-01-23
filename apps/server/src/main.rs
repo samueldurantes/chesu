@@ -1,4 +1,4 @@
-use server::AppState;
+use server::{app::make_app, AppState};
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -17,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
 
     sqlx::migrate!().run(&db).await?;
 
-    let (app, _) = server::app::make_app();
+    let (app, _) = make_app(db.clone());
 
     let listener =
         tokio::net::TcpListener::bind(&std::env::var("SERVER_URL").expect("SERVER_URL is void"))

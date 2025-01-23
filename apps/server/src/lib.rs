@@ -1,15 +1,20 @@
-use crate::http::user::User;
-use crate::http::{Error, Result};
+use http::{Error, Result};
 use sqlx::Pool;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
-use sqlx::{PgPool, Postgres};
-
 pub mod app;
 pub mod http;
+
+mod models;
+mod repositories;
+mod routes;
+mod services;
+
+use http::user::User;
+use sqlx::{PgPool, Postgres};
 
 pub struct RoomState {
     pub players: Mutex<HashSet<String>>,
