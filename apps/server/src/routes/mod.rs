@@ -10,5 +10,4 @@ pub fn mount() -> ApiRouter<crate::AppState> {
         .merge(http::wallet::router())
         .merge(docs::router())
         .merge(http::game::router())
-        .merge(http::user::router())
 }

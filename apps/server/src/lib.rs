@@ -1,3 +1,4 @@
+use http::game::Player;
 use http::{Error, Result};
 use sqlx::Pool;
 use std::collections::{HashMap, HashSet};
@@ -14,7 +15,6 @@ mod repositories;
 mod routes;
 mod services;
 
-use http::user::User;
 use sqlx::{PgPool, Postgres};
 
 pub struct RoomState {
@@ -43,7 +43,7 @@ pub struct AppState {
 }
 
 pub enum PlayerInput {
-    User(User),
+    User(Player),
     Id(Uuid),
 }
 

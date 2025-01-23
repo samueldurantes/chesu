@@ -29,7 +29,7 @@ struct ReturnedLastBalance {
 
 pub trait UserRepositoryTrait {
     async fn find_by_email(&self, email: String) -> sqlx::Result<User>;
-    async fn _find_by_id(&self, id: Uuid) -> sqlx::Result<User>;
+    async fn find_by_id(&self, id: Uuid) -> sqlx::Result<User>;
     async fn save(&self, user: SaveUser) -> Result<Uuid>;
 }
 
@@ -76,7 +76,7 @@ impl UserRepositoryTrait for UserRepository {
         })
     }
 
-    async fn _find_by_id(&self, id: Uuid) -> sqlx::Result<User> {
+    async fn find_by_id(&self, id: Uuid) -> sqlx::Result<User> {
         let ReturnedUser {
             id,
             username,

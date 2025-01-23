@@ -1,7 +1,6 @@
 use crate::http::error::Error;
 use crate::http::{extractor::AuthUser, Result};
 use crate::PlayerInput;
-use crate::User;
 use aide::{
     axum::{
         routing::{get_with, post_with},
@@ -26,6 +25,12 @@ use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use super::error::GenericError;
+
+pub struct Player {
+    pub id: Uuid,
+    pub username: String,
+    pub email: String,
+}
 
 const DEFAULT_BET_VALUE: i32 = 10;
 
@@ -100,7 +105,7 @@ async fn quick_pairing_game(
     };
 
     let user = sqlx::query_as!(
-        User,
+        Player,
         r#"
             WITH inserted_game AS (
                 INSERT INTO games (id, white_player, bet_value) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET black_player = $2
@@ -177,7 +182,7 @@ async fn join_game(
     })?;
 
     let user = sqlx::query_as!(
-        User,
+        Player,
         r#"
         WITH updated_game AS (
             UPDATE games
