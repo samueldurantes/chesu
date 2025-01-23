@@ -1,4 +1,3 @@
-pub mod docs;
 pub mod error;
 pub mod extractor;
 pub mod game;

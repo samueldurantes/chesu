@@ -38,7 +38,7 @@ pub fn make_app() -> (Router<AppState>, OpenApi) {
 
     let mut api = OpenApi::default();
     let app = ApiRouter::new()
-        .merge(routes::router())
+        .merge(routes::mount())
         .finish_api_with(&mut api, api_docs)
         .layer((
             SetSensitiveHeadersLayer::new([AUTHORIZATION]),
