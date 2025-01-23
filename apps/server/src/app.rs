@@ -8,7 +8,6 @@ use axum::{
     },
     Extension, Router,
 };
-use sqlx::{Pool, Postgres};
 use std::{sync::Arc, time::Duration};
 use tower_http::{
     catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
@@ -27,7 +26,7 @@ pub fn get_dotenv_path() -> String {
         .to_string()
 }
 
-pub fn make_app(db: Pool<Postgres>) -> (Router<AppState>, OpenApi) {
+pub fn make_app() -> (Router<AppState>, OpenApi) {
     dotenvy::from_path(get_dotenv_path()).expect(".env file not found");
     let client_url = &std::env::var("CLIENT_URL").expect("CLIENT_URL is void");
 
@@ -39,7 +38,7 @@ pub fn make_app(db: Pool<Postgres>) -> (Router<AppState>, OpenApi) {
 
     let mut api = OpenApi::default();
     let app = ApiRouter::new()
-        .merge(routes::router(db))
+        .merge(routes::router())
         .finish_api_with(&mut api, api_docs)
         .layer((
             SetSensitiveHeadersLayer::new([AUTHORIZATION]),

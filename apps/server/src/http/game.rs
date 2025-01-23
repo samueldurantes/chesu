@@ -111,7 +111,7 @@ async fn quick_pairing_game(
         auth_user.user_id,
         DEFAULT_BET_VALUE,
     )
-    .fetch_one(&state.db)
+    .fetch_one(&*state.db)
     .await?;
 
     state.add_player_to_room(current_game, PlayerInput::User(user))?;
@@ -152,7 +152,7 @@ async fn create_game(
     .bind(game_id)
     .bind(auth_user.user_id)
     .bind(payload.game.bet_value)
-    .fetch_optional(&state.db)
+    .fetch_optional(&*state.db)
     .await?;
 
     state.add_player_to_room(game_id, PlayerInput::Id(auth_user.user_id))?;
@@ -192,7 +192,7 @@ async fn join_game(
         game_id,
         auth_user.user_id
     )
-    .fetch_one(&state.db)
+    .fetch_one(&*state.db)
     .await?;
 
     state.add_player_to_room(game_id, PlayerInput::User(user))?;
@@ -225,7 +225,7 @@ async fn get_game(
         "#,
         game_id,
     )
-    .fetch_optional(&state.db)
+    .fetch_optional(&*state.db)
     .await?;
 
     match game {
@@ -239,7 +239,7 @@ async fn get_game(
                 "#,
                 game.white_player,
             )
-            .fetch_optional(&state.db)
+            .fetch_optional(&*state.db)
             .await?;
 
             let black_player = sqlx::query_as!(
@@ -251,7 +251,7 @@ async fn get_game(
                 "#,
                 game.black_player,
             )
-            .fetch_optional(&state.db)
+            .fetch_optional(&*state.db)
             .await?;
 
             Ok(Json(GameBody {
@@ -317,7 +317,7 @@ async fn update_moves(game: Game, move_: Move, state: &crate::AppState) -> Resul
         game.id,
         move_.play_move,
     )
-    .fetch_one(&state.db)
+    .fetch_one(&*state.db)
     .await
     .map_err(|_| "Failed to update moves".to_string())
 }
@@ -335,7 +335,7 @@ async fn handle_board_event(message: String, state: &crate::AppState) -> Result<
         "#,
         move_.game_id,
     )
-    .fetch_one(&state.db)
+    .fetch_one(&*state.db)
     .await
     .map_err(|_| "Failed to get the game".to_string())?;
 

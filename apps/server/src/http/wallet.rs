@@ -76,7 +76,7 @@ async fn check_invoice(
         r#" SELECT (invoice) FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#,
         auth_user.user_id
     )
-    .fetch_optional(&state.db)
+    .fetch_optional(&*state.db)
     .await?.unwrap_or( InvoiceField { invoice: None });
 
     Ok(Json(InvoiceBody {
@@ -108,7 +108,7 @@ async fn withdraw(
         r#" SELECT last_balance FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#,
         auth_user.user_id
     )
-    .fetch_one(&state.db)
+    .fetch_one(&*state.db)
     .await?;
 
     if amount <= 0 || amount > last_balance {
@@ -138,7 +138,7 @@ async fn withdraw(
         auth_user.user_id,
         amount
     )
-    .fetch_one(&state.db)
+    .fetch_one(&*state.db)
     .await?;
 
     let client = Client::new();
@@ -159,7 +159,7 @@ async fn withdraw(
 
     if !response.status().is_success() {
         sqlx::query!(r#" DELETE FROM transactions WHERE id = $1 "#, id)
-            .execute(&state.db)
+            .execute(&*state.db)
             .await?;
 
         return Err(Error::BadRequest {
@@ -203,7 +203,7 @@ async fn deposit_webhook_handler(
         amount,
         payload.payment_request
     )
-    .execute(&state.db)
+    .execute(&*state.db)
     .await?;
 
     Ok(())

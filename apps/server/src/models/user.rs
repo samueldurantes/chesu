@@ -7,5 +7,6 @@ pub struct User {
     pub id: Uuid,
     pub email: String,
     pub username: String,
+    pub hashed_password: String,
     pub balance: i32,
 }

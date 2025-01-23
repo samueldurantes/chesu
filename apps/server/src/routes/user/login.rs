@@ -1,13 +1,12 @@
-use crate::http::{
-    error::{Error, GenericError},
-    extractor::COOKIE_NAME,
-    Result,
-};
 use crate::{
-    models::user::User,
-    repositories::user_repository::UserRepository,
-    services::user::register_service::{RegisterInput, RegisterUserService},
+    http::{
+        error::{Error, GenericError},
+        extractor::COOKIE_NAME,
+        Result,
+    },
+    services::user::login_service::{LoginInput, LoginUserService},
 };
+use crate::{models::user::User, repositories::user_repository::UserRepository};
 use aide::transform::TransformOperation;
 use axum::{
     http::{header::SET_COOKIE, HeaderName},
@@ -29,13 +28,13 @@ fn build_set_cookie(token: Option<String>) -> String {
     cookie.to_string()
 }
 
-pub fn service() -> RegisterUserService<UserRepository> {
-    RegisterUserService::new(UserRepository::new())
+pub fn service() -> LoginUserService<UserRepository> {
+    LoginUserService::new(UserRepository::new())
 }
 
 pub async fn route(
-    user_register_service: RegisterUserService<UserRepository>,
-    Json(payload): Json<UserBody<RegisterUser>>,
+    user_login_service: LoginUserService<UserRepository>,
+    Json(payload): Json<UserBody<LoginUser>>,
 ) -> Result<(
     AppendHeaders<[(HeaderName, String); 1]>,
     Json<UserBody<User>>,
@@ -44,9 +43,8 @@ pub async fn route(
         return Err(Error::BadRequest { message });
     }
 
-    let (user, token) = user_register_service
-        .execute(RegisterInput {
-            username: payload.user.username,
+    let (user, token) = user_login_service
+        .execute(LoginInput {
             email: payload.user.email,
             password: payload.user.password,
         })
@@ -60,10 +58,9 @@ pub async fn route(
 
 pub fn docs(op: TransformOperation) -> TransformOperation {
     op.tag("Auth")
-        .description("Register an user")
+        .description("Login an user")
         .response::<200, Json<UserBody<User>>>()
         .response::<400, Json<GenericError>>()
-        .response::<500, Json<GenericError>>()
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -72,11 +69,9 @@ pub struct UserBody<T> {
 }
 
 #[derive(Validate, Deserialize, JsonSchema)]
-pub struct RegisterUser {
-    username: String,
+pub struct LoginUser {
     #[validate(email(message = "Invalid email"))]
     email: String,
-    #[validate(length(min = 8, message = "Password must be at least 8 characters"))]
     password: String,
 }
 

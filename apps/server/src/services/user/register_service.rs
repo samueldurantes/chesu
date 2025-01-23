@@ -35,7 +35,7 @@ impl<R: UserRepositoryTrait> RegisterUserService<R> {
             .save(SaveUser {
                 username: username.clone(),
                 email: email.clone(),
-                password_hash,
+                password_hash: password_hash.clone(),
             })
             .await?;
 
@@ -46,6 +46,7 @@ impl<R: UserRepositoryTrait> RegisterUserService<R> {
                 id: user_id,
                 username,
                 email,
+                hashed_password: password_hash,
                 balance: 0,
             },
             token,

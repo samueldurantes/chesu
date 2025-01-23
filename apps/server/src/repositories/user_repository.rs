@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::http::{Error, Result};
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
@@ -18,6 +20,7 @@ struct ReturnedUser {
     id: Uuid,
     username: String,
     email: String,
+    password: String,
 }
 
 struct ReturnedLastBalance {
@@ -25,40 +28,74 @@ struct ReturnedLastBalance {
 }
 
 pub trait UserRepositoryTrait {
+    async fn find_by_email(&self, email: String) -> sqlx::Result<User>;
     async fn _find_by_id(&self, id: Uuid) -> sqlx::Result<User>;
     async fn save(&self, user: SaveUser) -> Result<Uuid>;
 }
 
 pub struct UserRepository {
-    db: Pool<Postgres>,
+    db: Arc<Pool<Postgres>>,
 }
 
 impl UserRepository {
-    pub fn new(db: Pool<Postgres>) -> Self {
+    pub fn new() -> Self {
+        let db = crate::db::get_db();
         Self { db }
     }
 }
 
 impl UserRepositoryTrait for UserRepository {
-    async fn _find_by_id(&self, id: Uuid) -> sqlx::Result<User> {
+    async fn find_by_email(&self, email: String) -> sqlx::Result<User> {
+        let ReturnedUser {
+            id,
+            username,
+            email,
+            password: hashed_password,
+        } = sqlx::query_as!(
+            ReturnedUser,
+            r#" SELECT id, username, email, password FROM users WHERE email = $1 "#,
+            email,
+        )
+        .fetch_one(&*self.db)
+        .await?;
+
         let ReturnedLastBalance { last_balance: balance } = sqlx::query_as!(
             ReturnedLastBalance,
             r#" SELECT last_balance FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#,
             id
         )
-        .fetch_one(&self.db)
+        .fetch_one(&*self.db)
         .await?;
 
+        Ok(User {
+            id,
+            username,
+            email,
+            hashed_password,
+            balance,
+        })
+    }
+
+    async fn _find_by_id(&self, id: Uuid) -> sqlx::Result<User> {
         let ReturnedUser {
             id,
             username,
             email,
+            password: hashed_password,
         } = sqlx::query_as!(
             ReturnedUser,
-            r#" SELECT id, username, email FROM users WHERE id = $1 "#,
+            r#" SELECT id, username, email, password FROM users WHERE id = $1 "#,
             id,
         )
-        .fetch_one(&self.db)
+        .fetch_one(&*self.db)
+        .await?;
+
+        let ReturnedLastBalance { last_balance: balance } = sqlx::query_as!(
+            ReturnedLastBalance,
+            r#" SELECT last_balance FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#,
+            id
+        )
+        .fetch_one(&*self.db)
         .await?;
 
         Ok(User {
@@ -66,6 +103,7 @@ impl UserRepositoryTrait for UserRepository {
             username,
             email,
             balance,
+            hashed_password,
         })
     }
 
@@ -77,7 +115,7 @@ impl UserRepositoryTrait for UserRepository {
             user.email,
             user.password_hash,
         )
-        .fetch_one(&self.db)
+        .fetch_one(&*self.db)
         .await
         .map_err(|e| {
             if let sqlx::Error::Database(db_err) = &e {
@@ -92,7 +130,7 @@ impl UserRepositoryTrait for UserRepository {
         })?;
 
         sqlx::query!(r#" INSERT INTO transactions (user_id, type, amount, last_balance) VALUES ( $1, 'input', 0, 0); "#, id)
-            .execute(&self.db).await?;
+            .execute(&*self.db).await?;
 
         Ok(id)
     }

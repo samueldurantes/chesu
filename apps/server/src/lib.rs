@@ -6,6 +6,7 @@ use tokio::sync::broadcast;
 use uuid::Uuid;
 
 pub mod app;
+pub mod db;
 pub mod http;
 
 mod models;
@@ -36,7 +37,7 @@ impl RoomState {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db: PgPool,
+    pub db: Arc<PgPool>,
     pub rooms: Arc<Mutex<HashMap<String, RoomState>>>,
     pub available_game: Arc<Mutex<Option<Uuid>>>,
 }
@@ -47,7 +48,7 @@ pub enum PlayerInput {
 }
 
 impl AppState {
-    pub fn new(db: Pool<Postgres>) -> Self {
+    pub fn new(db: Arc<Pool<Postgres>>) -> Self {
         AppState {
             db,
             rooms: Arc::new(Mutex::new(HashMap::new())),

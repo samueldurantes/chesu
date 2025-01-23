@@ -1,5 +1,6 @@
+use server::db::get_db;
+use server::db::init_db;
 use server::{app::make_app, AppState};
-use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -10,14 +11,11 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let db = PgPoolOptions::new()
-        .max_connections(50)
-        .connect(&std::env::var("DATABASE_URL").expect("DATABASE_URL is void"))
-        .await?;
+    init_db().await;
 
-    sqlx::migrate!().run(&db).await?;
+    sqlx::migrate!().run(&*get_db()).await?;
 
-    let (app, _) = make_app(db.clone());
+    let (app, _) = make_app();
 
     let listener =
         tokio::net::TcpListener::bind(&std::env::var("SERVER_URL").expect("SERVER_URL is void"))
@@ -25,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
             .unwrap();
 
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, app.with_state(AppState::new(db)))
+    axum::serve(listener, app.with_state(AppState::new(get_db())))
         .await
         .unwrap();
 
