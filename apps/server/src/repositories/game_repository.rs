@@ -1,0 +1,113 @@
+use crate::models::game::{ColorPlayer, Game, GameRecord, Player};
+use std::sync::Arc;
+
+use crate::http::Result;
+use sqlx::{Pool, Postgres};
+use uuid::Uuid;
+
+pub trait GameRepositoryTrait {
+    async fn get_player(&self, user_id: Uuid) -> sqlx::Result<Player>;
+    async fn get_game(&self, game_id: Uuid) -> sqlx::Result<Game>;
+    async fn save_game(&self, game: Game) -> Result<()>;
+    async fn add_player(
+        &self,
+        game_id: Uuid,
+        player_id: Uuid,
+        player_color: ColorPlayer,
+    ) -> Result<()>;
+}
+
+pub struct GameRepository {
+    db: Arc<Pool<Postgres>>,
+}
+
+impl GameRepository {
+    pub fn new() -> Self {
+        let db = crate::db::get_db();
+        Self { db }
+    }
+}
+
+impl GameRepositoryTrait for GameRepository {
+    async fn get_player(&self, user_id: Uuid) -> sqlx::Result<Player> {
+        sqlx::query_as!(
+            Player,
+            r#" SELECT id, username, email FROM users WHERE id = $1 "#,
+            user_id,
+        )
+        .fetch_one(&*self.db)
+        .await
+    }
+
+    async fn get_game(&self, game_id: Uuid) -> sqlx::Result<Game> {
+        let game_record = sqlx::query_as!(
+            GameRecord,
+            r#" SELECT id, white_player, black_player, bet_value, moves FROM games WHERE id = $1 "#,
+            game_id,
+        )
+        .fetch_one(&*self.db)
+        .await?;
+
+        let white_player = if let Some(player_id) = game_record.white_player {
+            Some(self.get_player(player_id).await?)
+        } else {
+            None
+        };
+
+        let black_player = if let Some(player_id) = game_record.white_player {
+            Some(self.get_player(player_id).await?)
+        } else {
+            None
+        };
+
+        let GameRecord {
+            id,
+            moves,
+            bet_value,
+            ..
+        } = game_record;
+
+        Ok(Game {
+            id,
+            white_player,
+            black_player,
+            bet_value,
+            moves,
+        })
+    }
+
+    async fn save_game(&self, game: Game) -> Result<()> {
+        let game_record = game.to_game_record();
+
+        sqlx::query!(
+            r#" INSERT INTO games (id, white_player, black_player, bet_value, moves) VALUES ($1, $2, $3, $4, $5); "#,
+            game_record.id,
+            game_record.white_player,
+            game_record.black_player,
+            game_record.bet_value,
+            &game_record.moves
+        )
+        .execute(&*self.db)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn add_player(
+        &self,
+        game_id: Uuid,
+        player_id: Uuid,
+        player_color: ColorPlayer,
+    ) -> Result<()> {
+        sqlx::query(&format!(
+            "UPDATE games SET {} = $1 WHERE id = $2; ",
+            player_color.to_string()
+        ))
+        .bind(player_id)
+        .bind(game_id)
+        .execute(&*self.db)
+        .await?;
+
+        Ok(())
+    }
+}
