@@ -1,7 +1,7 @@
+pub mod client;
 pub mod error;
 pub mod extractor;
 pub mod game;
-pub mod wallet;
 
 pub use error::{Error, ResultExt};
 
