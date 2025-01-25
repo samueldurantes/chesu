@@ -1,4 +1,4 @@
-use crate::models::game::{ColorPlayer, Game, GameRecord, Player};
+use crate::models::game::{Game, GameRecord, Player, PlayerColor};
 use std::sync::Arc;
 
 use crate::http::Result;
@@ -14,7 +14,7 @@ pub trait GameRepositoryTrait {
         &self,
         game_id: Uuid,
         player_id: Uuid,
-        player_color: ColorPlayer,
+        player_color: PlayerColor,
     ) -> Result<()>;
 }
 
@@ -95,7 +95,7 @@ impl GameRepositoryTrait for GameRepository {
         &self,
         game_id: Uuid,
         player_id: Uuid,
-        player_color: ColorPlayer,
+        player_color: PlayerColor,
     ) -> Result<()> {
         sqlx::query(&format!(
             "UPDATE games SET {} = $1 WHERE id = $2; ",

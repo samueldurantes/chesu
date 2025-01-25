@@ -1,15 +1,32 @@
+use rand::random;
 use uuid::Uuid;
 
-pub enum ColorPlayer {
-    WHITE,
-    BLACK,
+#[derive(Clone, Copy)]
+pub enum PlayerColor {
+    White,
+    Black,
 }
 
-impl ColorPlayer {
+impl PlayerColor {
+    pub fn random() -> Self {
+        if random::<i8>() % 2 == 0 {
+            return Self::White;
+        }
+
+        Self::Black
+    }
+
+    pub fn choose(color_preference: Option<Self>) -> Self {
+        match color_preference {
+            Some(color) => color,
+            None => PlayerColor::random(),
+        }
+    }
+
     pub fn to_string(self) -> String {
         match self {
-            Self::WHITE => String::from("white_player"),
-            Self::BLACK => String::from("black_player"),
+            Self::White => String::from("white_player"),
+            Self::Black => String::from("black_player"),
         }
     }
 }
@@ -56,4 +73,24 @@ pub struct GameRecord {
     pub black_player: Option<Uuid>,
     pub bet_value: i32,
     pub moves: Vec<String>,
+}
+
+impl GameRecord {
+    fn new_empty() -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            ..Default::default()
+        }
+    }
+
+    pub fn new(player_id: Uuid, color_preference: PlayerColor) -> Self {
+        let mut game_record = Self::new_empty();
+
+        match color_preference {
+            PlayerColor::White => game_record.white_player = Some(player_id),
+            PlayerColor::Black => game_record.black_player = Some(player_id),
+        };
+
+        game_record
+    }
 }

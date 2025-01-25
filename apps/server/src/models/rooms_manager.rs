@@ -1,4 +1,4 @@
-use super::game::{ColorPlayer, Player};
+use super::game::{Player, PlayerColor};
 use crate::http::Result;
 use crate::models::game::GameRecord;
 use crate::states::rooms_manager;
@@ -50,7 +50,7 @@ impl Room {
     pub fn add_player(
         &mut self,
         player: Player,
-        color_preference: Option<ColorPlayer>,
+        color_preference: Option<PlayerColor>,
     ) -> Result<(), ()> {
         if self.is_full() {
             return Err(());
@@ -59,13 +59,13 @@ impl Room {
         let username = player.username.clone();
 
         match color_preference {
-            Some(ColorPlayer::WHITE) => {
+            Some(PlayerColor::White) => {
                 if self.white_player.is_some() {
                     return Err(());
                 }
                 self.white_player = Some(player);
             }
-            Some(ColorPlayer::BLACK) => {
+            Some(PlayerColor::Black) => {
                 if self.black_player.is_some() {
                     return Err(());
                 }
@@ -95,7 +95,7 @@ pub trait RoomsManagerTrait: Send + Sync {
         &self,
         room_id: Uuid,
         player: Player,
-        color_preference: Option<ColorPlayer>,
+        color_preference: Option<PlayerColor>,
     ) -> Result<(), ()>;
     fn pair_new_player(&self, player_id: Uuid) -> PairedGame;
 }
@@ -148,7 +148,7 @@ impl RoomsManagerTrait for RoomsManager {
         &self,
         room_id: Uuid,
         player: Player,
-        color_preference: Option<ColorPlayer>,
+        color_preference: Option<PlayerColor>,
     ) -> Result<(), ()> {
         self.game_rooms
             .lock()
