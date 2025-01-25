@@ -93,7 +93,7 @@ impl Room {
 }
 
 pub trait RoomsManagerTrait: Send + Sync {
-    // fn get_room(&self, room_id: Uuid) -> Option<&Room>;
+    fn get_room(&self, room_id: Uuid) -> Option<broadcast::Sender<String>>;
     fn create_room(&self, room_id: Uuid);
     fn add_player(
         &self,
@@ -126,9 +126,13 @@ impl RoomsManager {
 }
 
 impl RoomsManagerTrait for RoomsManager {
-    // fn get_room(&self, room_id: Uuid) -> Option<&Room> {
-    //     let room = self.game_rooms.lock().unwrap().get(&room_id);
-    // }
+    fn get_room(&self, room_id: Uuid) -> Option<broadcast::Sender<String>> {
+        self.game_rooms
+            .lock()
+            .unwrap()
+            .get(&room_id)
+            .map(|room| room.tx.clone())
+    }
 
     fn create_room(&self, room_id: Uuid) {
         self.game_rooms.lock().unwrap().insert(room_id, Room::new());

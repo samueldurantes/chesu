@@ -16,6 +16,7 @@ pub trait GameRepositoryTrait {
         player_id: Uuid,
         player_color: PlayerColor,
     ) -> Result<()>;
+    async fn record_move(&self, game_id: Uuid, move_played: String) -> sqlx::Result<()>;
 }
 
 pub struct GameRepository {
@@ -103,6 +104,18 @@ impl GameRepositoryTrait for GameRepository {
         ))
         .bind(player_id)
         .bind(game_id)
+        .execute(&*self.db)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn record_move(&self, game_id: Uuid, move_played: String) -> sqlx::Result<()> {
+        sqlx::query!(
+            r#" UPDATE games SET moves = array_append(moves, $1) WHERE id = $2 "#,
+            move_played,
+            game_id,
+        )
         .execute(&*self.db)
         .await?;
 

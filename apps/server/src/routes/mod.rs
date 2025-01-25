@@ -1,4 +1,3 @@
-use crate::http;
 use aide::axum::ApiRouter;
 
 mod docs;
@@ -12,5 +11,4 @@ pub fn mount() -> ApiRouter<crate::AppState> {
         .merge(wallet::router())
         .merge(docs::router())
         .merge(game::router())
-        .merge(http::game::router())
 }

@@ -195,15 +195,10 @@ export interface paths {
   "/game/create": {
     /** @description Create a game */
     post: {
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["GameBody_for_CreateGame"];
-        };
-      };
       responses: {
         200: {
           content: {
-            "application/json": components["schemas"]["GameBody_for_Uuid"];
+            "application/json": components["schemas"]["GameId2"];
           };
         };
         400: {
@@ -219,13 +214,13 @@ export interface paths {
     get: {
       parameters: {
         path: {
-          id: string;
+          game_id: string;
         };
       };
       responses: {
         200: {
           content: {
-            "application/json": components["schemas"]["GameBody_for_GameWithPlayers"];
+            "application/json": components["schemas"]["GameBody"];
           };
         };
         400: {
@@ -244,13 +239,13 @@ export interface paths {
     post: {
       parameters: {
         path: {
-          id: string;
+          game_id: string;
         };
       };
       responses: {
         200: {
           content: {
-            "application/json": components["schemas"]["GameBody_for_Uuid"];
+            "application/json": components["schemas"]["GameId3"];
           };
         };
         400: {
@@ -336,11 +331,6 @@ export interface components {
     };
     /** @enum {string} */
     CookieStyle: "form";
-    CreateGame: {
-      /** Format: int32 */
-      bet_value: number;
-      color_preference?: string | null;
-    };
     /** @description A single encoding definition applied to a single schema property. */
     Encoding: {
       /** @description Determines whether the parameter value SHOULD allow reserved characters, as defined by RFC3986 :/?#[]@!$&'()*+,;= to be included without percent-encoding. The default value is false. This property SHALL be ignored if the request body media type is not application/x-www-form-urlencoded or multipart/form-data. If a value is explicitly defined, then the value of `contentType` (implicit or explicit) SHALL be ignored. */
@@ -380,36 +370,33 @@ export interface components {
       url: string;
       [key: string]: unknown;
     };
-    GameBody_for_CreateGame: {
-      game: components["schemas"]["CreateGame"];
-    };
-    GameBody_for_GameWithPlayers: {
-      game: components["schemas"]["GameWithPlayers"];
-    };
-    GameBody_for_Uuid: {
+    Game: {
+      /** Format: int32 */
+      bet_value: number;
+      black_player?: components["schemas"]["Player"] | null;
       /** Format: uuid */
-      game: string;
-    };
-    GameID: {
       id: string;
+      moves: string[];
+      white_player?: components["schemas"]["Player"] | null;
+    };
+    GameBody: {
+      game: components["schemas"]["Game"];
     };
     GameId: {
       /** Format: uuid */
       game_id: string;
     };
-    GamePlayer: {
+    GameId2: {
       /** Format: uuid */
-      id: string;
-      username: string;
+      game_id: string;
     };
-    GameWithPlayers: {
-      /** Format: int32 */
-      bet_value: number;
-      black_player?: components["schemas"]["GamePlayer"] | null;
+    GameId3: {
       /** Format: uuid */
-      id: string;
-      moves: string[];
-      white_player?: components["schemas"]["GamePlayer"] | null;
+      game_id: string;
+    };
+    GameId4: {
+      /** Format: uuid */
+      game_id: string;
     };
     GenericError: {
       message: string;
@@ -792,6 +779,12 @@ export interface components {
     /** @description Holds the relative paths to the individual endpoints and their operations. The path is appended to the URL from the Server Object in order to construct the full URL. The Paths MAY be empty, due to Access Control List (ACL) constraints. */
     Paths: {
       [key: string]: unknown;
+    };
+    Player: {
+      email: string;
+      /** Format: uuid */
+      id: string;
+      username: string;
     };
     /** @enum {string} */
     QueryStyle: "form" | "spaceDelimited" | "pipeDelimited" | "deepObject";

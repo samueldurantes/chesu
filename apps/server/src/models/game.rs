@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum PlayerColor {
     White,
     Black,
@@ -33,7 +33,7 @@ impl PlayerColor {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Player {
     pub id: Uuid,
     pub username: String,
@@ -64,6 +64,28 @@ impl Game {
             black_player: self.black_player.map(|player| player.id),
             bet_value: self.bet_value,
             moves: self.moves,
+        }
+    }
+
+    pub fn get_turn_color(&self) -> PlayerColor {
+        if self.moves.len() % 2 == 0 {
+            PlayerColor::White
+        } else {
+            PlayerColor::Black
+        }
+    }
+
+    pub fn get_player_color(&self, player_id: Uuid) -> PlayerColor {
+        if self
+            .white_player
+            .clone()
+            .map(|player| player.id)
+            .unwrap_or_default()
+            == player_id
+        {
+            PlayerColor::White
+        } else {
+            PlayerColor::Black
         }
     }
 }

@@ -1,10 +1,15 @@
-use http::game::Player;
 use http::{Error, Result};
 use sqlx::Pool;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
 use uuid::Uuid;
+
+pub struct Player {
+    pub id: Uuid,
+    pub username: String,
+    pub email: String,
+}
 
 pub mod app;
 pub mod http;
