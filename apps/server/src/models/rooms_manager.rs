@@ -51,52 +51,56 @@ impl Room {
         &mut self,
         player: Player,
         color_preference: Option<PlayerColor>,
-    ) -> Result<(), ()> {
+    ) -> Result<PlayerColor, ()> {
         if self.is_full() {
             return Err(());
         }
 
-        let username = player.username.clone();
+        // let username = player.username.clone();
 
-        match color_preference {
+        let player_color = match color_preference {
             Some(PlayerColor::White) => {
                 if self.white_player.is_some() {
                     return Err(());
                 }
                 self.white_player = Some(player);
+                PlayerColor::White
             }
             Some(PlayerColor::Black) => {
                 if self.black_player.is_some() {
                     return Err(());
                 }
                 self.black_player = Some(player);
+                PlayerColor::Black
             }
             None => {
                 if self.white_player.is_none() {
-                    self.white_player = Some(player)
+                    self.white_player = Some(player);
+                    PlayerColor::White
                 } else {
-                    self.black_player = Some(player)
+                    self.black_player = Some(player);
+                    PlayerColor::Black
                 }
             }
-        }
+        };
 
         // if self.is_full() {
         //     self.notify_other_player(username);
         // }
 
-        Ok(())
+        Ok(player_color)
     }
 }
 
 pub trait RoomsManagerTrait: Send + Sync {
-    fn get_room(&self, room_id: Uuid) -> Option<broadcast::Sender<String>>;
-    fn create_room(&self, room_id: Uuid) -> broadcast::Sender<String>;
+    // fn get_room(&self, room_id: Uuid) -> Option<&Room>;
+    fn create_room(&self, room_id: Uuid);
     fn add_player(
         &self,
         room_id: Uuid,
         player: Player,
         color_preference: Option<PlayerColor>,
-    ) -> Result<(), ()>;
+    ) -> Result<PlayerColor, ()>;
     fn pair_new_player(&self, player_id: Uuid) -> PairedGame;
 }
 
@@ -122,26 +126,12 @@ impl RoomsManager {
 }
 
 impl RoomsManagerTrait for RoomsManager {
-    fn get_room(&self, room_id: Uuid) -> Option<broadcast::Sender<String>> {
-        self.game_rooms
-            .lock()
-            .unwrap()
-            .get(&room_id)
-            .map(|room| room.tx.clone())
-    }
+    // fn get_room(&self, room_id: Uuid) -> Option<&Room> {
+    //     let room = self.game_rooms.lock().unwrap().get(&room_id);
+    // }
 
-    fn create_room(&self, room_id: Uuid) -> broadcast::Sender<String> {
-        let (tx, _) = broadcast::channel(100);
-        self.game_rooms.lock().unwrap().insert(
-            room_id,
-            Room {
-                tx: tx.clone(),
-                white_player: None,
-                black_player: None,
-            },
-        );
-
-        tx
+    fn create_room(&self, room_id: Uuid) {
+        self.game_rooms.lock().unwrap().insert(room_id, Room::new());
     }
 
     fn add_player(
@@ -149,14 +139,13 @@ impl RoomsManagerTrait for RoomsManager {
         room_id: Uuid,
         player: Player,
         color_preference: Option<PlayerColor>,
-    ) -> Result<(), ()> {
+    ) -> Result<PlayerColor, ()> {
         self.game_rooms
             .lock()
             .unwrap()
             .get_mut(&room_id)
-            .map(|room| room.add_player(player, color_preference));
-
-        Ok(())
+            .map(|room| room.add_player(player, color_preference))
+            .unwrap()
     }
 
     fn pair_new_player(&self, player_id: Uuid) -> PairedGame {
