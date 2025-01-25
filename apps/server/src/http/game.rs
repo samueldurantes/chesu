@@ -32,14 +32,8 @@ pub struct Player {
     pub email: String,
 }
 
-const DEFAULT_BET_VALUE: i32 = 10;
-
 pub(crate) fn router() -> ApiRouter<crate::AppState> {
     ApiRouter::new()
-        .api_route(
-            "/game/pairing",
-            post_with(quick_pairing_game, quick_pairing_game_docs),
-        )
         .api_route("/game/create", post_with(create_game, create_game_docs))
         .api_route("/game/:id", get_with(get_game, get_game_docs))
         .api_route("/game/:id", post_with(join_game, join_game_docs))
@@ -85,50 +79,6 @@ struct GameWithPlayers {
     black_player: Option<GamePlayer>,
     bet_value: i32,
     moves: Vec<String>,
-}
-
-async fn quick_pairing_game(
-    auth_user: AuthUser,
-    state: State<crate::AppState>,
-) -> Result<Json<GameBody<Uuid>>> {
-    let current_game = {
-        let mut available_game = state.available_game.lock().unwrap();
-        let current_game = available_game.clone().unwrap_or(Uuid::new_v4());
-
-        *available_game = if (*available_game).is_some() {
-            None
-        } else {
-            Some(current_game)
-        };
-
-        current_game
-    };
-
-    let user = sqlx::query_as!(
-        Player,
-        r#"
-            WITH inserted_game AS (
-                INSERT INTO games (id, white_player, bet_value) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET black_player = $2
-            )
-            SELECT id, username, email FROM users WHERE id = $2
-        "#,
-        current_game,
-        auth_user.user_id,
-        DEFAULT_BET_VALUE,
-    )
-    .fetch_one(&*state.db)
-    .await?;
-
-    state.add_player_to_room(current_game, PlayerInput::User(user))?;
-
-    Ok(Json(GameBody { game: current_game }))
-}
-
-fn quick_pairing_game_docs(op: TransformOperation) -> TransformOperation {
-    op.tag("Quick Pairing")
-        .description("Quick Pair players to play")
-        .response::<200, Json<GameBody<Uuid>>>()
-        .response::<400, Json<GenericError>>()
 }
 
 fn pick_color(color_preference: Option<&str>) -> String {
