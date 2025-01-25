@@ -34,7 +34,6 @@ pub struct Player {
 
 pub(crate) fn router() -> ApiRouter<crate::AppState> {
     ApiRouter::new()
-        .api_route("/game/create", post_with(create_game, create_game_docs))
         .api_route("/game/:id", get_with(get_game, get_game_docs))
         .api_route("/game/:id", post_with(join_game, join_game_docs))
         .api_route("/game/ws", get_with(game_ws, game_ws_docs))
@@ -91,35 +90,6 @@ fn pick_color(color_preference: Option<&str>) -> String {
         }
     }
     .to_string()
-}
-
-async fn create_game(
-    auth_user: AuthUser,
-    state: State<crate::AppState>,
-    payload: Json<GameBody<CreateGame>>,
-) -> Result<Json<GameBody<Uuid>>> {
-    let game_id = Uuid::new_v4();
-
-    sqlx::query(&format!(
-        "INSERT INTO games (id, {}, bet_value) VALUES ($1, $2, $3)",
-        pick_color(payload.game.color_preference.as_deref())
-    ))
-    .bind(game_id)
-    .bind(auth_user.user_id)
-    .bind(payload.game.bet_value)
-    .fetch_optional(&*state.db)
-    .await?;
-
-    state.add_player_to_room(game_id, PlayerInput::Id(auth_user.user_id))?;
-
-    Ok(Json(GameBody { game: game_id }))
-}
-
-fn create_game_docs(op: TransformOperation) -> TransformOperation {
-    op.tag("Game")
-        .description("Create a game")
-        .response::<200, Json<GameBody<Uuid>>>()
-        .response::<400, Json<GenericError>>()
 }
 
 async fn join_game(
