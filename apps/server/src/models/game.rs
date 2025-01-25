@@ -1,4 +1,6 @@
 use rand::random;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Clone, Copy)]
@@ -31,14 +33,14 @@ impl PlayerColor {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Player {
     pub id: Uuid,
     pub username: String,
     pub email: String,
 }
 
-#[derive(Default)]
+#[derive(Serialize, Deserialize, JsonSchema, Default)]
 pub struct Game {
     pub id: Uuid,
     pub white_player: Option<Player>,

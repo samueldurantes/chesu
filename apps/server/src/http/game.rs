@@ -1,58 +1,24 @@
-use crate::http::error::Error;
-use crate::http::{extractor::AuthUser, Result};
-use crate::PlayerInput;
+use crate::http::Result;
 use aide::{
-    axum::{
-        routing::{get_with, post_with},
-        ApiRouter,
-    },
+    axum::{routing::get_with, ApiRouter},
     transform::TransformOperation,
     NoApi,
 };
 use axum::{
     extract::{
         ws::{Message, WebSocket},
-        Path, State, WebSocketUpgrade,
+        State, WebSocketUpgrade,
     },
     response::IntoResponse,
-    Json,
 };
 use futures::{stream::StreamExt, SinkExt};
-use rand::{seq::SliceRandom, thread_rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
-use super::error::GenericError;
-
-pub struct Player {
-    pub id: Uuid,
-    pub username: String,
-    pub email: String,
-}
-
 pub(crate) fn router() -> ApiRouter<crate::AppState> {
-    ApiRouter::new()
-        .api_route("/game/:id", get_with(get_game, get_game_docs))
-        .api_route("/game/:id", post_with(join_game, join_game_docs))
-        .api_route("/game/ws", get_with(game_ws, game_ws_docs))
-}
-
-#[derive(Deserialize, JsonSchema)]
-struct GameID {
-    id: String,
-}
-
-#[derive(Serialize, Deserialize, JsonSchema)]
-struct GameBody<T> {
-    game: T,
-}
-
-#[derive(Deserialize, JsonSchema)]
-struct CreateGame {
-    bet_value: i32,
-    color_preference: Option<String>,
+    ApiRouter::new().api_route("/game/ws", get_with(game_ws, game_ws_docs))
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -63,144 +29,6 @@ pub struct Game {
     pub last_move_player: Option<Uuid>,
     pub bet_value: i32,
     pub moves: Vec<String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-struct GamePlayer {
-    id: Uuid,
-    username: String,
-}
-
-#[derive(Serialize, Deserialize, JsonSchema)]
-struct GameWithPlayers {
-    id: Uuid,
-    white_player: Option<GamePlayer>,
-    black_player: Option<GamePlayer>,
-    bet_value: i32,
-    moves: Vec<String>,
-}
-
-fn pick_color(color_preference: Option<&str>) -> String {
-    match color_preference {
-        Some("white") => "white_player",
-        Some("black") => "black_player",
-        _ => {
-            let choices = ["white_player", "black_player"];
-            *choices.choose(&mut thread_rng()).unwrap()
-        }
-    }
-    .to_string()
-}
-
-async fn join_game(
-    auth_user: AuthUser,
-    state: State<crate::AppState>,
-    Path(GameID { id: game_id }): Path<GameID>,
-) -> Result<Json<GameBody<Uuid>>> {
-    let game_id = Uuid::parse_str(&game_id).map_err(|_| Error::BadRequest {
-        message: "Invalid game id".to_string(),
-    })?;
-
-    let user = sqlx::query_as!(
-        Player,
-        r#"
-        WITH updated_game AS (
-            UPDATE games
-            SET 
-                white_player = COALESCE(white_player, $2),
-                black_player = COALESCE(black_player, $2)
-            WHERE id = $1
-            RETURNING id
-        )
-        SELECT id, username, email FROM users WHERE id = $2
-    "#,
-        game_id,
-        auth_user.user_id
-    )
-    .fetch_one(&*state.db)
-    .await?;
-
-    state.add_player_to_room(game_id, PlayerInput::User(user))?;
-
-    Ok(Json(GameBody { game: game_id }))
-}
-
-fn join_game_docs(op: TransformOperation) -> TransformOperation {
-    op.tag("Game")
-        .description("Join a game")
-        .response::<200, Json<GameBody<Uuid>>>()
-        .response::<400, Json<GenericError>>()
-        .response::<404, Json<GenericError>>()
-}
-
-async fn get_game(
-    state: State<crate::AppState>,
-    Path(GameID { id: game_id }): Path<GameID>,
-) -> Result<Json<GameBody<GameWithPlayers>>> {
-    let game_id = Uuid::parse_str(&game_id).map_err(|_| Error::BadRequest {
-        message: "Invalid game ID".to_string(),
-    })?;
-
-    let game = sqlx::query_as!(
-        Game,
-        r#"
-            SELECT id, white_player, black_player, bet_value, last_move_player, moves
-            FROM games
-            WHERE id = $1
-        "#,
-        game_id,
-    )
-    .fetch_optional(&*state.db)
-    .await?;
-
-    match game {
-        Some(game) => {
-            let white_player = sqlx::query_as!(
-                GamePlayer,
-                r#"
-                    SELECT id, username
-                    FROM users
-                    WHERE id = $1
-                "#,
-                game.white_player,
-            )
-            .fetch_optional(&*state.db)
-            .await?;
-
-            let black_player = sqlx::query_as!(
-                GamePlayer,
-                r#"
-                    SELECT id, username
-                    FROM users
-                    WHERE id = $1
-                "#,
-                game.black_player,
-            )
-            .fetch_optional(&*state.db)
-            .await?;
-
-            Ok(Json(GameBody {
-                game: GameWithPlayers {
-                    id: game.id,
-                    white_player,
-                    black_player,
-                    bet_value: game.bet_value,
-                    moves: game.moves,
-                },
-            }))
-        }
-        None => Err(Error::NotFound {
-            message: "Game not found".to_string(),
-        }),
-    }
-}
-
-fn get_game_docs(op: TransformOperation) -> TransformOperation {
-    op.tag("Game")
-        .description("Get a game")
-        .response::<200, Json<GameBody<GameWithPlayers>>>()
-        .response::<400, Json<GenericError>>()
-        .response::<404, Json<GenericError>>()
 }
 
 async fn game_ws(

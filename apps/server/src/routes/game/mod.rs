@@ -1,6 +1,10 @@
-use aide::axum::{routing::post_with, ApiRouter};
+use aide::axum::{
+    routing::{get_with, post_with},
+    ApiRouter,
+};
 
 mod create_game;
+mod get_game;
 mod join_game;
 mod quick_pairing_game;
 
@@ -25,6 +29,13 @@ pub fn router() -> ApiRouter<crate::AppState> {
             post_with(
                 |auth_user, path| join_game::route(join_game::resource(), auth_user, path),
                 join_game::docs,
+            ),
+        )
+        .api_route(
+            "/game/:id",
+            get_with(
+                |path| get_game::route(get_game::resource(), path),
+                get_game::docs,
             ),
         )
 }
