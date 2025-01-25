@@ -1,27 +1,19 @@
+use super::game::{ColorPlayer, Player};
 use crate::http::Result;
 use crate::models::game::GameRecord;
+use crate::states::rooms_manager;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
-pub struct Player {
-    id: Uuid,
-    username: String,
-    email: String,
-}
-
-pub enum ColorPlayer {
-    WHITE,
-    BLACK,
-}
-
 pub enum PairedGame {
     NewGame(GameRecord),
     ExistingGame(Uuid),
 }
 
+#[derive(Debug)]
 pub struct Room {
     pub white_player: Option<Player>,
     pub black_player: Option<Player>,
@@ -88,9 +80,9 @@ impl Room {
             }
         }
 
-        if self.is_full() {
-            self.notify_other_player(username);
-        }
+        // if self.is_full() {
+        //     self.notify_other_player(username);
+        // }
 
         Ok(())
     }
@@ -105,13 +97,28 @@ pub trait RoomsManagerTrait: Send + Sync {
         player: Player,
         color_preference: Option<ColorPlayer>,
     ) -> Result<(), ()>;
-    fn pair_new_player(&self, player_id: Uuid) -> Result<PairedGame, ()>;
+    fn pair_new_player(&self, player_id: Uuid) -> PairedGame;
 }
 
+pub type GameRooms = Arc<Mutex<HashMap<Uuid, Room>>>;
+pub type WaitingRoom = Arc<Mutex<Option<Uuid>>>;
+
+#[derive(Debug)]
 pub struct RoomsManager {
-    pub game_rooms: Arc<Mutex<HashMap<Uuid, Room>>>,
-    pub waiting_room: Arc<Mutex<Option<Uuid>>>,
+    game_rooms: GameRooms,
+    waiting_room: WaitingRoom,
     // pub waiting_rooms: Arc<Mutex<HashMap<String, Option<Uuid>>>>,
+}
+
+impl RoomsManager {
+    pub fn new() -> Self {
+        let (game_rooms, waiting_room) = rooms_manager::get();
+
+        Self {
+            game_rooms,
+            waiting_room,
+        }
+    }
 }
 
 impl RoomsManagerTrait for RoomsManager {
@@ -152,7 +159,7 @@ impl RoomsManagerTrait for RoomsManager {
         Ok(())
     }
 
-    fn pair_new_player(&self, player_id: Uuid) -> Result<PairedGame, ()> {
+    fn pair_new_player(&self, player_id: Uuid) -> PairedGame {
         let mut waiting_room = self.waiting_room.lock().unwrap();
 
         let (paired_game, new_waiting_room) = match waiting_room.take() {
@@ -171,6 +178,6 @@ impl RoomsManagerTrait for RoomsManager {
         };
         *waiting_room = new_waiting_room;
 
-        Ok(paired_game)
+        paired_game
     }
 }

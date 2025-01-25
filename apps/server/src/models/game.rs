@@ -14,6 +14,7 @@ impl ColorPlayer {
     }
 }
 
+#[derive(Debug)]
 pub struct Player {
     pub id: Uuid,
     pub username: String,
