@@ -78,6 +78,8 @@ const Game = () => {
   });
 
   useEffect(() => {
+    if (connection.current) return;
+
     // TODO: Move this to .env file
     const socket = new WebSocket('ws://localhost:3000/game/ws');
 
