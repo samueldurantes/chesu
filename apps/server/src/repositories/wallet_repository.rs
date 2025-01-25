@@ -1,3 +1,4 @@
+use crate::states::db;
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -41,8 +42,7 @@ pub struct WalletRepository {
 
 impl WalletRepository {
     pub fn new() -> Self {
-        let db = crate::db::get_db();
-        Self { db }
+        Self { db: db::get() }
     }
 }
 

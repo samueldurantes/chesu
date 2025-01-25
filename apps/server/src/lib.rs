@@ -7,8 +7,8 @@ use tokio::sync::broadcast;
 use uuid::Uuid;
 
 pub mod app;
-pub mod db;
 pub mod http;
+pub mod states;
 
 mod models;
 mod repositories;

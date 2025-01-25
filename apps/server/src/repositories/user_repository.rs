@@ -1,3 +1,4 @@
+use crate::states::db;
 use std::sync::Arc;
 
 use crate::http::{Error, Result};
@@ -11,7 +12,6 @@ pub struct SaveUser {
     pub email: String,
     pub password_hash: String,
 }
-
 struct ReturnedId {
     id: Uuid,
 }
@@ -39,8 +39,7 @@ pub struct UserRepository {
 
 impl UserRepository {
     pub fn new() -> Self {
-        let db = crate::db::get_db();
-        Self { db }
+        Self { db: db::get() }
     }
 }
 

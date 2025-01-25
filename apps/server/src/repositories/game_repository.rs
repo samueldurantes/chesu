@@ -2,13 +2,14 @@ use crate::models::game::{ColorPlayer, Game, GameRecord, Player};
 use std::sync::Arc;
 
 use crate::http::Result;
+use crate::states::db;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
 pub trait GameRepositoryTrait {
     async fn get_player(&self, user_id: Uuid) -> sqlx::Result<Player>;
     async fn get_game(&self, game_id: Uuid) -> sqlx::Result<Game>;
-    async fn save_game(&self, game: Game) -> Result<()>;
+    async fn save_game(&self, game: GameRecord) -> Result<()>;
     async fn add_player(
         &self,
         game_id: Uuid,
@@ -23,8 +24,7 @@ pub struct GameRepository {
 
 impl GameRepository {
     pub fn new() -> Self {
-        let db = crate::db::get_db();
-        Self { db }
+        Self { db: db::get() }
     }
 }
 
@@ -76,16 +76,14 @@ impl GameRepositoryTrait for GameRepository {
         })
     }
 
-    async fn save_game(&self, game: Game) -> Result<()> {
-        let game_record = game.to_game_record();
-
+    async fn save_game(&self, game: GameRecord) -> Result<()> {
         sqlx::query!(
             r#" INSERT INTO games (id, white_player, black_player, bet_value, moves) VALUES ($1, $2, $3, $4, $5); "#,
-            game_record.id,
-            game_record.white_player,
-            game_record.black_player,
-            game_record.bet_value,
-            &game_record.moves
+            game.id,
+            game.white_player,
+            game.black_player,
+            game.bet_value,
+            &game.moves
         )
         .execute(&*self.db)
         .await?;
