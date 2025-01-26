@@ -1,9 +1,9 @@
-use crate::http::Result;
-use crate::repositories::game_repository::GameRepository;
-use crate::{models::game::Game, repositories::game_repository::GameRepositoryTrait};
+use crate::{
+    http::Result, models::game::Game, repositories::game_repository::GameRepository,
+    repositories::game_repository::GameRepositoryTrait,
+};
 use aide::transform::TransformOperation;
-use axum::extract::Path;
-use axum::Json;
+use axum::{extract::Path, Json};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -12,7 +12,7 @@ use crate::http::error::GenericError;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct GameId {
-    pub game_id: Uuid,
+    pub id: Uuid,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -26,7 +26,7 @@ pub fn resource() -> GameRepository {
 
 pub async fn route(
     game_repository: GameRepository,
-    Path(GameId { game_id }): Path<GameId>,
+    Path(GameId { id: game_id }): Path<GameId>,
 ) -> Result<Json<GameBody>> {
     Ok(Json(GameBody {
         game: game_repository.get_game(game_id).await?,

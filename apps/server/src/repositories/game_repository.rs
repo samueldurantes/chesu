@@ -3,9 +3,11 @@ use std::sync::Arc;
 
 use crate::http::Result;
 use crate::states::db;
+use mockall::automock;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
+#[automock]
 pub trait GameRepositoryTrait {
     async fn get_player(&self, user_id: Uuid) -> sqlx::Result<Player>;
     async fn get_game(&self, game_id: Uuid) -> sqlx::Result<Game>;
@@ -55,7 +57,7 @@ impl GameRepositoryTrait for GameRepository {
             None
         };
 
-        let black_player = if let Some(player_id) = game_record.white_player {
+        let black_player = if let Some(player_id) = game_record.black_player {
             Some(self.get_player(player_id).await?)
         } else {
             None

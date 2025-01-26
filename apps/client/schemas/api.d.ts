@@ -214,7 +214,7 @@ export interface paths {
     get: {
       parameters: {
         path: {
-          game_id: string;
+          id: string;
         };
       };
       responses: {
@@ -396,7 +396,7 @@ export interface components {
     };
     GameId4: {
       /** Format: uuid */
-      game_id: string;
+      id: string;
     };
     GenericError: {
       message: string;

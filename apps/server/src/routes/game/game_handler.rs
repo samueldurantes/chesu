@@ -14,6 +14,7 @@ use axum::{
 use futures::SinkExt;
 use futures::StreamExt;
 use tokio::sync::broadcast;
+use tracing::info;
 
 pub fn resource() -> PlayMoveService<GameRepository> {
     PlayMoveService::new(GameRepository::new())
@@ -26,20 +27,22 @@ pub async fn route(
     NoApi(ws.on_upgrade(|socket| game_handler(socket, play_move_service)))
 }
 
-fn connect_channel(room_id: String) -> (broadcast::Sender<String>, broadcast::Receiver<String>) {
+fn connect_channel(
+    room_id: String,
+) -> Option<(broadcast::Sender<String>, broadcast::Receiver<String>)> {
     let rooms_manager = crate::models::rooms_manager::RoomsManager::new();
+    let tx = rooms_manager.get_room_tx(uuid::Uuid::parse_str(&room_id).unwrap());
 
-    let tx = rooms_manager.get_room(uuid::Uuid::parse_str(&room_id).unwrap());
-
-    tx.map(|tx| (tx.clone(), tx.subscribe())).unwrap()
+    tx.map(|tx| (tx.clone(), tx.subscribe()))
 }
 
 async fn game_handler(socket: WebSocket, play_move_service: PlayMoveService<GameRepository>) {
     let (mut sender, mut receiver) = socket.split();
     let mut channel = None::<(broadcast::Sender<String>, broadcast::Receiver<String>)>;
 
-    if let Some(Ok(Message::Text(room_id))) = receiver.next().await {
-        channel = Some(connect_channel(room_id));
+    while let Some(Ok(Message::Text(room_id))) = receiver.next().await {
+        channel = connect_channel(room_id);
+        break;
     }
 
     let (tx, mut rx) = channel.unwrap();

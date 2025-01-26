@@ -25,14 +25,7 @@ const HomeActions = () => {
 
   const { mutateAsync: mutateCreateGame, isPending } = useMutation({
     mutationFn: async () => {
-      const { data, error } = await api.POST('/game/create', {
-        body: {
-          game: {
-            // TODO: Allow the user to choose the bet value
-            bet_value: 0,
-          },
-        },
-      });
+      const { data, error } = await api.POST('/game/create');
 
       if (error) {
         throw new Error(error.message);
@@ -40,7 +33,7 @@ const HomeActions = () => {
 
       return data;
     },
-    onSuccess: (data) => navigate(`/game/${data.game}`),
+    onSuccess: (data) => navigate(`/game/${data.game_id}`),
     // TODO: Show a snackbar with the error message
     onError: (error) => console.log({ error }),
   });

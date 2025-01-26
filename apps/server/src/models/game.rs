@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PlayerColor {
     White,
     Black,
@@ -33,14 +33,14 @@ impl PlayerColor {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Player {
     pub id: Uuid,
     pub username: String,
     pub email: String,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Default)]
+#[derive(Serialize, Deserialize, JsonSchema, Default, Clone)]
 pub struct Game {
     pub id: Uuid,
     pub white_player: Option<Player>,
@@ -50,12 +50,12 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new_empty() -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            ..Default::default()
-        }
-    }
+    // pub fn new_empty() -> Self {
+    //     Self {
+    //         id: Uuid::new_v4(),
+    //         ..Default::default()
+    //     }
+    // }
 
     pub fn to_game_record(self) -> GameRecord {
         GameRecord {
@@ -90,7 +90,7 @@ impl Game {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GameRecord {
     pub id: Uuid,
     pub white_player: Option<Uuid>,
