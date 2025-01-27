@@ -18,7 +18,6 @@ pub mod states;
 mod models;
 mod repositories;
 mod routes;
-mod services;
 
 use sqlx::{PgPool, Postgres};
 

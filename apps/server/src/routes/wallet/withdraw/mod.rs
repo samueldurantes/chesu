@@ -3,30 +3,30 @@ use std::str::FromStr;
 use crate::http::error::Error;
 use crate::http::{extractor::AuthUser, Result};
 use crate::repositories::wallet_repository::WalletRepository;
-use crate::services::withdraw_service::{WithdrawInput, WithdrawService};
 use aide::transform::TransformOperation;
 use axum::Json;
 use lightning_invoice::Bolt11Invoice;
 use reqwest::Client;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use service::{WithdrawInput, WithdrawService};
 
 use crate::http::error::GenericError;
+
+mod service;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct InvoiceBody {
     invoice: String,
 }
 
-pub fn resource() -> WithdrawService<WalletRepository, Client> {
+fn resource() -> WithdrawService<WalletRepository, Client> {
     WithdrawService::new(WalletRepository::new(), Client::new())
 }
 
-pub async fn route(
-    withdraw_service: WithdrawService<WalletRepository, Client>,
-    auth_user: AuthUser,
-    Json(payload): Json<InvoiceBody>,
-) -> Result<()> {
+pub async fn route(auth_user: AuthUser, Json(payload): Json<InvoiceBody>) -> Result<()> {
+    let withdraw_service = resource();
+
     let amount = (Bolt11Invoice::from_str(&payload.invoice)
         .map_err(|_| Error::BadRequest {
             message: String::from("Invalid invoice input"),

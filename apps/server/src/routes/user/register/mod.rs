@@ -3,11 +3,7 @@ use crate::http::{
     extractor::COOKIE_NAME,
     Result,
 };
-use crate::{
-    models::user::User,
-    repositories::user_repository::UserRepository,
-    services::user::register_service::{RegisterInput, RegisterUserService},
-};
+use crate::{models::user::User, repositories::user_repository::UserRepository};
 use aide::transform::TransformOperation;
 use axum::{
     http::{header::SET_COOKIE, HeaderName},
@@ -17,7 +13,10 @@ use axum::{
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use service::{RegisterInput, RegisterUserService};
 use validator::Validate;
+
+mod service;
 
 fn build_set_cookie(token: Option<String>) -> String {
     let cookie = Cookie::build((COOKIE_NAME, token.unwrap_or_default()))
@@ -29,17 +28,18 @@ fn build_set_cookie(token: Option<String>) -> String {
     cookie.to_string()
 }
 
-pub fn service() -> RegisterUserService<UserRepository> {
+fn resource() -> RegisterUserService<UserRepository> {
     RegisterUserService::new(UserRepository::new())
 }
 
 pub async fn route(
-    user_register_service: RegisterUserService<UserRepository>,
     Json(payload): Json<UserBody<RegisterUser>>,
 ) -> Result<(
     AppendHeaders<[(HeaderName, String); 1]>,
     Json<UserBody<User>>,
 )> {
+    let user_register_service = resource();
+
     if let Some(message) = validate_user_payload(&payload) {
         return Err(Error::BadRequest { message });
     }

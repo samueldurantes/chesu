@@ -29,15 +29,16 @@ struct InvoiceBuilder {
     memo: String,
 }
 
-pub fn resource() -> Client {
+fn resource() -> impl HttpClient {
     Client::new()
 }
 
-pub async fn route<C: HttpClient>(
-    client: C,
+pub async fn route(
     auth_user: AuthUser,
     Json(payload): Json<AmountBody>,
 ) -> Result<Json<InvoiceBody>> {
+    let client = resource();
+
     if payload.amount <= 0 {
         return Err(Error::BadRequest {
             message: String::from("Invalid invoice input"),

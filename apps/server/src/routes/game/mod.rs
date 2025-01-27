@@ -13,37 +13,16 @@ pub fn router() -> ApiRouter<crate::AppState> {
     ApiRouter::new()
         .api_route(
             "/game/pairing",
-            post_with(
-                |auth_user| quick_pairing_game::route(quick_pairing_game::resource(), auth_user),
-                quick_pairing_game::docs,
-            ),
+            post_with(quick_pairing_game::route, quick_pairing_game::docs),
         )
         .api_route(
             "/game/create",
-            post_with(
-                |auth_user| create_game::route(create_game::resource(), auth_user),
-                create_game::docs,
-            ),
+            post_with(create_game::route, create_game::docs),
         )
-        .api_route(
-            "/game/:id",
-            post_with(
-                |auth_user, path| join_game::route(join_game::resource(), auth_user, path),
-                join_game::docs,
-            ),
-        )
-        .api_route(
-            "/game/:id",
-            get_with(
-                |path| get_game::route(get_game::resource(), path),
-                get_game::docs,
-            ),
-        )
+        .api_route("/game/:id", post_with(join_game::route, join_game::docs))
+        .api_route("/game/:id", get_with(get_game::route, get_game::docs))
         .api_route(
             "/game/ws",
-            get_with(
-                |ws| game_handler::route(game_handler::resource(), ws),
-                game_handler::docs,
-            ),
+            get_with(game_handler::route, game_handler::docs),
         )
 }

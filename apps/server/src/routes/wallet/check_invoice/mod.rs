@@ -12,14 +12,13 @@ pub struct InvoiceBody {
     invoice: String,
 }
 
-pub fn resource() -> WalletRepository {
+fn resource() -> WalletRepository {
     WalletRepository::new()
 }
 
-pub async fn route(
-    wallet_repository: WalletRepository,
-    auth_user: AuthUser,
-) -> Result<Json<InvoiceBody>> {
+pub async fn route(auth_user: AuthUser) -> Result<Json<InvoiceBody>> {
+    let wallet_repository = resource();
+
     let invoice = wallet_repository.get_invoice(auth_user.user_id).await?;
     Ok(Json(InvoiceBody { invoice }))
 }

@@ -20,14 +20,13 @@ pub struct GameBody {
     pub game: Game,
 }
 
-pub fn resource() -> GameRepository {
+fn resource() -> GameRepository {
     GameRepository::new()
 }
 
-pub async fn route(
-    game_repository: GameRepository,
-    Path(GameId { id: game_id }): Path<GameId>,
-) -> Result<Json<GameBody>> {
+pub async fn route(Path(GameId { id: game_id }): Path<GameId>) -> Result<Json<GameBody>> {
+    let game_repository = resource();
+
     Ok(Json(GameBody {
         game: game_repository.get_game(game_id).await?,
     }))

@@ -1,7 +1,5 @@
 use crate::{
-    models::rooms_manager::RoomsManagerTrait,
-    repositories::game_repository::GameRepository,
-    services::game::play_move_service::{MoveInfo, PlayMoveService},
+    models::rooms_manager::RoomsManagerTrait, repositories::game_repository::GameRepository,
 };
 use aide::{transform::TransformOperation, NoApi};
 use axum::{
@@ -13,18 +11,17 @@ use axum::{
 };
 use futures::SinkExt;
 use futures::StreamExt;
+use service::PlayMoveService;
 use tokio::sync::broadcast;
-use tracing::info;
 
-pub fn resource() -> PlayMoveService<GameRepository> {
+mod service;
+
+fn resource() -> PlayMoveService<GameRepository> {
     PlayMoveService::new(GameRepository::new())
 }
 
-pub async fn route(
-    play_move_service: PlayMoveService<GameRepository>,
-    NoApi(ws): NoApi<WebSocketUpgrade>,
-) -> NoApi<impl IntoResponse> {
-    NoApi(ws.on_upgrade(|socket| game_handler(socket, play_move_service)))
+pub async fn route(NoApi(ws): NoApi<WebSocketUpgrade>) -> NoApi<impl IntoResponse> {
+    NoApi(ws.on_upgrade(game_handler))
 }
 
 fn connect_channel(
@@ -36,7 +33,9 @@ fn connect_channel(
     tx.map(|tx| (tx.clone(), tx.subscribe()))
 }
 
-async fn game_handler(socket: WebSocket, play_move_service: PlayMoveService<GameRepository>) {
+async fn game_handler(socket: WebSocket) {
+    let play_move_service = resource();
+
     let (mut sender, mut receiver) = socket.split();
     let mut channel = None::<(broadcast::Sender<String>, broadcast::Receiver<String>)>;
 
@@ -57,7 +56,7 @@ async fn game_handler(socket: WebSocket, play_move_service: PlayMoveService<Game
         tokio::spawn(async move {
             while let Some(Ok(Message::Text(move_info))) = receiver.next().await {
                 let play_result = play_move_service
-                    .execute(MoveInfo::from_str(&move_info).unwrap())
+                    .execute(service::MoveInfo::from_str(&move_info).unwrap())
                     .await;
 
                 match play_result {

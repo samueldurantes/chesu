@@ -1,10 +1,7 @@
-use crate::{
-    http::{
-        error::{Error, GenericError},
-        extractor::COOKIE_NAME,
-        Result,
-    },
-    services::user::login_service::{LoginInput, LoginUserService},
+use crate::http::{
+    error::{Error, GenericError},
+    extractor::COOKIE_NAME,
+    Result,
 };
 use crate::{models::user::User, repositories::user_repository::UserRepository};
 use aide::transform::TransformOperation;
@@ -27,18 +24,22 @@ fn build_set_cookie(token: Option<String>) -> String {
 
     cookie.to_string()
 }
+use service::{LoginInput, LoginUserService};
 
-pub fn service() -> LoginUserService<UserRepository> {
+mod service;
+
+fn resource() -> LoginUserService<UserRepository> {
     LoginUserService::new(UserRepository::new())
 }
 
 pub async fn route(
-    user_login_service: LoginUserService<UserRepository>,
     Json(payload): Json<UserBody<LoginUser>>,
 ) -> Result<(
     AppendHeaders<[(HeaderName, String); 1]>,
     Json<UserBody<User>>,
 )> {
+    let user_login_service = resource();
+
     if let Some(message) = validate_user_payload(&payload) {
         return Err(Error::BadRequest { message });
     }

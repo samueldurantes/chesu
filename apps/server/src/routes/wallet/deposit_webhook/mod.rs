@@ -14,15 +14,14 @@ pub struct InvoiceSettled {
     payment_request: String,
 }
 
-pub fn resource() -> WalletRepository {
+fn resource() -> WalletRepository {
     WalletRepository::new()
 }
 
 // TODO: Set cors to lsp origin
-pub async fn route(
-    wallet_repository: WalletRepository,
-    Json(payload): Json<InvoiceSettled>,
-) -> Result<()> {
+pub async fn route(Json(payload): Json<InvoiceSettled>) -> Result<()> {
+    let wallet_repository = resource();
+
     let invoice = Bolt11Invoice::from_str(&payload.payment_request).unwrap();
     let user_id = uuid::Uuid::from_str(&invoice.description().to_string()).unwrap();
     let amount = (invoice.amount_milli_satoshis().unwrap() / 1000) as i32;
