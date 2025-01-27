@@ -1,5 +1,4 @@
 use crate::states::db;
-use std::sync::Arc;
 
 use crate::http::{Error, Result};
 use sqlx::{Pool, Postgres};
@@ -34,7 +33,7 @@ pub trait UserRepositoryTrait {
 }
 
 pub struct UserRepository {
-    db: Arc<Pool<Postgres>>,
+    db: Pool<Postgres>,
 }
 
 impl UserRepository {
@@ -55,7 +54,7 @@ impl UserRepositoryTrait for UserRepository {
             r#" SELECT id, username, email, password FROM users WHERE email = $1 "#,
             email,
         )
-        .fetch_one(&*self.db)
+        .fetch_one(&self.db)
         .await?;
 
         let ReturnedLastBalance { last_balance: balance } = sqlx::query_as!(
@@ -63,7 +62,7 @@ impl UserRepositoryTrait for UserRepository {
             r#" SELECT last_balance FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#,
             id
         )
-        .fetch_one(&*self.db)
+        .fetch_one(&self.db)
         .await?;
 
         Ok(User {
@@ -86,7 +85,7 @@ impl UserRepositoryTrait for UserRepository {
             r#" SELECT id, username, email, password FROM users WHERE id = $1 "#,
             id,
         )
-        .fetch_one(&*self.db)
+        .fetch_one(&self.db)
         .await?;
 
         let ReturnedLastBalance { last_balance: balance } = sqlx::query_as!(
@@ -94,7 +93,7 @@ impl UserRepositoryTrait for UserRepository {
             r#" SELECT last_balance FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#,
             id
         )
-        .fetch_one(&*self.db)
+        .fetch_one(&self.db)
         .await?;
 
         Ok(User {
@@ -114,7 +113,7 @@ impl UserRepositoryTrait for UserRepository {
             user.email,
             user.password_hash,
         )
-        .fetch_one(&*self.db)
+        .fetch_one(&self.db)
         .await
         .map_err(|e| {
             if let sqlx::Error::Database(db_err) = &e {
@@ -129,7 +128,7 @@ impl UserRepositoryTrait for UserRepository {
         })?;
 
         sqlx::query!(r#" INSERT INTO transactions (user_id, type, amount, last_balance) VALUES ( $1, 'input', 0, 0); "#, id)
-            .execute(&*self.db).await?;
+            .execute(&self.db).await?;
 
         Ok(id)
     }

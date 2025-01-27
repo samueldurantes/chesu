@@ -5,7 +5,7 @@ mod game;
 mod user;
 mod wallet;
 
-pub fn mount() -> ApiRouter<crate::AppState> {
+pub fn mount() -> ApiRouter {
     ApiRouter::new()
         .merge(user::router())
         .merge(wallet::router())

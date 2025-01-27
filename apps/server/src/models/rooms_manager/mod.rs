@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use super::game::{Player, PlayerColor};
 use crate::{http::Result, states::rooms_manager};
 use mockall::automock;
@@ -95,6 +96,7 @@ impl Room {
 #[automock]
 pub trait RoomsManagerTrait: Send + Sync {
     fn get_room_tx(&self, room_id: Uuid) -> Option<broadcast::Sender<String>>;
+
     fn get_room(&self, room_id: Uuid) -> Option<Room>;
     fn create_room(&self, room_id: Uuid);
     fn add_player(

@@ -9,7 +9,7 @@ mod get_game;
 mod join_game;
 mod quick_pairing_game;
 
-pub fn router() -> ApiRouter<crate::AppState> {
+pub fn router() -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/game/pairing",

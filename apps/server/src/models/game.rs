@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use rand::random;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

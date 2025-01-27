@@ -1,5 +1,4 @@
 use crate::routes;
-use crate::AppState;
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
 use axum::{
     http::{
@@ -26,7 +25,7 @@ pub fn get_dotenv_path() -> String {
         .to_string()
 }
 
-pub fn make_app() -> (Router<AppState>, OpenApi) {
+fn make_app_with_api() -> (Router, OpenApi) {
     dotenvy::from_path(get_dotenv_path()).expect(".env file not found");
     let client_url = &std::env::var("CLIENT_URL").expect("CLIENT_URL is void");
 
@@ -55,6 +54,14 @@ pub fn make_app() -> (Router<AppState>, OpenApi) {
         ));
 
     (app, api)
+}
+
+pub fn make_app() -> Router {
+    make_app_with_api().0
+}
+
+pub fn make_api() -> OpenApi {
+    make_app_with_api().1
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {

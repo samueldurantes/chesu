@@ -8,7 +8,7 @@ mod create_invoice;
 mod deposit_webhook;
 mod withdraw;
 
-pub fn router() -> ApiRouter<crate::AppState> {
+pub fn router() -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/invoice/create",

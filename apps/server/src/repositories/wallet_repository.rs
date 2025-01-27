@@ -1,6 +1,5 @@
 use crate::states::db;
 use sqlx::{Pool, Postgres};
-use std::sync::Arc;
 use uuid::Uuid;
 
 pub struct SaveIncoming {
@@ -37,7 +36,7 @@ pub trait WalletRepositoryTrait {
 }
 
 pub struct WalletRepository {
-    db: Arc<Pool<Postgres>>,
+    db: Pool<Postgres>,
 }
 
 impl WalletRepository {
@@ -66,7 +65,7 @@ async fn save_transaction(db: &Pool<Postgres>, info: SaveTransaction) -> sqlx::R
         info.amount,
         info.invoice.unwrap_or_default()
     )
-    .fetch_one(&*db)
+    .fetch_one(db)
     .await?;
 
     Ok(id)
@@ -81,7 +80,7 @@ impl WalletRepositoryTrait for WalletRepository {
         } = info;
 
         save_transaction(
-            &*self.db,
+            &self.db,
             SaveTransaction {
                 user_id,
                 direction: String::from("input"),
@@ -96,7 +95,7 @@ impl WalletRepositoryTrait for WalletRepository {
         let SaveOutgoing { user_id, amount } = info;
 
         save_transaction(
-            &*self.db,
+            &self.db,
             SaveTransaction {
                 user_id,
                 direction: String::from("output"),
@@ -112,7 +111,7 @@ impl WalletRepositoryTrait for WalletRepository {
             r#" SELECT last_balance FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#,
             user_id
         )
-        .fetch_one(&*self.db)
+        .fetch_one(&self.db)
         .await
     }
 
@@ -122,7 +121,7 @@ impl WalletRepositoryTrait for WalletRepository {
             r#" SELECT invoice FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#,
             user_id
         )
-        .fetch_one(&*self.db)
+        .fetch_one(&self.db)
         .await?.invoice.unwrap_or_default())
     }
 }

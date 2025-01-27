@@ -1,5 +1,4 @@
 use crate::models::game::{Game, GameRecord, Player, PlayerColor};
-use std::sync::Arc;
 
 use crate::http::Result;
 use crate::states::db;
@@ -22,7 +21,7 @@ pub trait GameRepositoryTrait {
 }
 
 pub struct GameRepository {
-    db: Arc<Pool<Postgres>>,
+    db: Pool<Postgres>,
 }
 
 impl GameRepository {
@@ -38,7 +37,7 @@ impl GameRepositoryTrait for GameRepository {
             r#" SELECT id, username, email FROM users WHERE id = $1 "#,
             user_id,
         )
-        .fetch_one(&*self.db)
+        .fetch_one(&self.db)
         .await
     }
 
@@ -48,7 +47,7 @@ impl GameRepositoryTrait for GameRepository {
             r#" SELECT id, white_player, black_player, bet_value, moves FROM games WHERE id = $1 "#,
             game_id,
         )
-        .fetch_one(&*self.db)
+        .fetch_one(&self.db)
         .await?;
 
         let white_player = if let Some(player_id) = game_record.white_player {
@@ -88,7 +87,7 @@ impl GameRepositoryTrait for GameRepository {
             game.bet_value,
             &game.moves
         )
-        .execute(&*self.db)
+        .execute(&self.db)
         .await?;
 
         Ok(())
@@ -106,7 +105,7 @@ impl GameRepositoryTrait for GameRepository {
         ))
         .bind(player_id)
         .bind(game_id)
-        .execute(&*self.db)
+        .execute(&self.db)
         .await?;
 
         Ok(())
@@ -118,7 +117,7 @@ impl GameRepositoryTrait for GameRepository {
             move_played,
             game_id,
         )
-        .execute(&*self.db)
+        .execute(&self.db)
         .await?;
 
         Ok(())

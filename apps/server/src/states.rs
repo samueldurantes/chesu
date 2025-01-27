@@ -1,11 +1,8 @@
 pub mod db {
     use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
-    use std::sync::Arc;
     use tokio::sync::OnceCell;
 
-    static DB: OnceCell<SharedDB> = OnceCell::const_new();
-
-    pub type SharedDB = Arc<Pool<Postgres>>;
+    static DB: OnceCell<Pool<Postgres>> = OnceCell::const_new();
 
     pub async fn init() {
         let db = PgPoolOptions::new()
@@ -14,11 +11,10 @@ pub mod db {
             .await
             .expect("DB is not working");
 
-        let db = Arc::new(db);
         DB.set(db).unwrap();
     }
 
-    pub fn get() -> SharedDB {
+    pub fn get() -> Pool<Postgres> {
         DB.get().expect("Database has not been initialized").clone()
     }
 }

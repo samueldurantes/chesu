@@ -1,3 +1,4 @@
+use server::app::make_api;
 use std::env;
 
 fn main() {
@@ -7,8 +8,7 @@ fn main() {
         .map(|p| cwd.join(p))
         .expect("missing path to json file");
 
-    let (_, open_api) = server::app::make_app();
-    let json = serde_json::to_string_pretty(&open_api).unwrap();
+    let json = serde_json::to_string_pretty(&make_api()).unwrap();
 
     std::fs::write(path, json).unwrap();
 
