@@ -1,5 +1,5 @@
 use crate::states::db;
-use sqlx::{Pool, Postgres};
+use sqlx::{prelude::FromRow, Pool, Postgres};
 use uuid::Uuid;
 
 pub struct SaveIncoming {
@@ -20,10 +20,12 @@ struct SaveTransaction {
     invoice: Option<String>,
 }
 
+#[derive(FromRow)]
 struct ReturnedId {
     id: Uuid,
 }
 
+#[derive(FromRow)]
 struct ReturnedInvoice {
     invoice: Option<String>,
 }
@@ -46,8 +48,7 @@ impl WalletRepository {
 }
 
 async fn save_transaction(db: &Pool<Postgres>, info: SaveTransaction) -> sqlx::Result<Uuid> {
-    let ReturnedId { id } = sqlx::query_as!(
-        ReturnedId,
+    let ReturnedId { id } = sqlx::query_as::<_, ReturnedId>(
         r#"
             WITH last_transaction AS (
                 SELECT last_balance AS last_balance
@@ -60,11 +61,11 @@ async fn save_transaction(db: &Pool<Postgres>, info: SaveTransaction) -> sqlx::R
             VALUES ( $1, $2, $3, (SELECT last_balance FROM last_transaction) + $3, $4) 
             RETURNING id;
         "#,
-        info.user_id,
-        info.direction,
-        info.amount,
-        info.invoice.unwrap_or_default()
     )
+    .bind(info.user_id)
+    .bind(info.direction)
+    .bind(info.amount)
+    .bind(info.invoice.unwrap_or_default())
     .fetch_one(db)
     .await?;
 
@@ -107,20 +108,19 @@ impl WalletRepositoryTrait for WalletRepository {
     }
 
     async fn get_balance(&self, user_id: Uuid) -> sqlx::Result<i32> {
-        sqlx::query_scalar!(
-            r#" SELECT last_balance FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#,
-            user_id
+        sqlx::query_scalar(
+            r#" SELECT last_balance FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#
         )
+        .bind(user_id)
         .fetch_one(&self.db)
         .await
     }
 
     async fn get_invoice(&self, user_id: Uuid) -> sqlx::Result<String> {
-        Ok(sqlx::query_as!(
-            ReturnedInvoice,
-            r#" SELECT invoice FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#,
-            user_id
+        Ok(sqlx::query_as::<_, ReturnedInvoice>(
+            r#" SELECT invoice FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#
         )
+        .bind(user_id)
         .fetch_one(&self.db)
         .await?.invoice.unwrap_or_default())
     }

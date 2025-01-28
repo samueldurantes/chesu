@@ -32,21 +32,17 @@ impl GameRepository {
 
 impl GameRepositoryTrait for GameRepository {
     async fn get_player(&self, user_id: Uuid) -> sqlx::Result<Player> {
-        sqlx::query_as!(
-            Player,
-            r#" SELECT id, username, email FROM users WHERE id = $1 "#,
-            user_id,
-        )
-        .fetch_one(&self.db)
-        .await
+        sqlx::query_as::<_, Player>(r#" SELECT id, username, email FROM users WHERE id = $1 "#)
+            .bind(user_id)
+            .fetch_one(&self.db)
+            .await
     }
 
     async fn get_game(&self, game_id: Uuid) -> sqlx::Result<Game> {
-        let game_record = sqlx::query_as!(
-            GameRecord,
+        let game_record = sqlx::query_as::<_, GameRecord>(
             r#" SELECT id, white_player, black_player, bet_value, moves FROM games WHERE id = $1 "#,
-            game_id,
         )
+        .bind(game_id)
         .fetch_one(&self.db)
         .await?;
 
@@ -79,14 +75,14 @@ impl GameRepositoryTrait for GameRepository {
     }
 
     async fn save_game(&self, game: GameRecord) -> Result<()> {
-        sqlx::query!(
+        sqlx::query(
             r#" INSERT INTO games (id, white_player, black_player, bet_value, moves) VALUES ($1, $2, $3, $4, $5); "#,
-            game.id,
-            game.white_player,
-            game.black_player,
-            game.bet_value,
-            &game.moves
         )
+        .bind(game.id)
+        .bind(game.white_player)
+        .bind(game.black_player)
+        .bind(game.bet_value)
+        .bind(&game.moves)
         .execute(&self.db)
         .await?;
 
@@ -112,13 +108,11 @@ impl GameRepositoryTrait for GameRepository {
     }
 
     async fn record_move(&self, game_id: Uuid, move_played: String) -> sqlx::Result<()> {
-        sqlx::query!(
-            r#" UPDATE games SET moves = array_append(moves, $1) WHERE id = $2 "#,
-            move_played,
-            game_id,
-        )
-        .execute(&self.db)
-        .await?;
+        sqlx::query(r#" UPDATE games SET moves = array_append(moves, $1) WHERE id = $2 "#)
+            .bind(move_played)
+            .bind(game_id)
+            .execute(&self.db)
+            .await?;
 
         Ok(())
     }

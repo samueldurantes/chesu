@@ -2,6 +2,7 @@
 use rand::random;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -34,7 +35,7 @@ impl PlayerColor {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, JsonSchema, FromRow)]
 pub struct Player {
     pub id: Uuid,
     pub username: String,
@@ -91,7 +92,7 @@ impl Game {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, FromRow)]
 pub struct GameRecord {
     pub id: Uuid,
     pub white_player: Option<Uuid>,
