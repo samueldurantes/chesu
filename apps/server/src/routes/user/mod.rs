@@ -3,10 +3,10 @@ use aide::axum::{
     ApiRouter,
 };
 
-pub mod login;
-pub mod logout;
-pub mod me;
-pub mod register;
+mod login;
+mod logout;
+mod me;
+mod register;
 
 pub fn router() -> ApiRouter {
     ApiRouter::new()
