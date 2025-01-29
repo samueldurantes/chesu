@@ -1,3 +1,4 @@
+use crate::bad_req;
 use crate::http::client::HttpClient;
 use crate::http::{Error, Result};
 use crate::repositories::wallet_repository::{SaveOutgoing, WalletRepositoryTrait};
@@ -21,12 +22,6 @@ struct InvoiceBody {
     invoice: String,
 }
 
-fn bad_request() -> Error {
-    Error::BadRequest {
-        message: String::from("Invalid invoice input"),
-    }
-}
-
 impl<R: WalletRepositoryTrait, C: HttpClient> WithdrawService<R, C> {
     pub fn new(wallet_repository: R, client: C) -> Self {
         Self {
@@ -46,7 +41,7 @@ impl<R: WalletRepositoryTrait, C: HttpClient> WithdrawService<R, C> {
         let balance = self.wallet_repository.get_balance(user_id).await?;
 
         if amount <= 0 || amount > balance {
-            return Err(bad_request());
+            return bad_req!("Invalid invoice input");
         }
 
         let response = self

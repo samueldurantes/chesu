@@ -45,6 +45,15 @@ pub enum Error {
     Anyhow(#[from] anyhow::Error),
 }
 
+#[macro_export]
+macro_rules! bad_req {
+    ($msg:expr) => {
+        Err(Error::BadRequest {
+            message: $msg.into(),
+        })
+    };
+}
+
 impl Error {
     pub fn unprocessable_entity<K, V>(errors: impl IntoIterator<Item = (K, V)>) -> Self
     where
