@@ -44,14 +44,9 @@ impl<R: WalletRepositoryTrait, C: HttpClient> WithdrawService<R, C> {
             return bad_req!("Invalid invoice input");
         }
 
-        let response = self
-            .client
+        self.client
             .post("/payments/bolt11", &InvoiceBody { invoice })
             .await?;
-
-        if !response.status().is_success() {
-            return Err(bad_request());
-        }
 
         self.wallet_repository
             .save_outgoing(SaveOutgoing { user_id, amount })
