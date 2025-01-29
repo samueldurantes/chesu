@@ -10,87 +10,6 @@ type XOR<T, U> = (T | U) extends object ? (Without<T, U> & U) | (Without<U, T> &
 type OneOf<T extends any[]> = T extends [infer Only] ? Only : T extends [infer A, infer B, ...infer Rest] ? OneOf<[XOR<A, B>, ...Rest]> : never;
 
 export interface paths {
-  "/invoice/create": {
-    /** @description Create an invoice to deposit satoshis */
-    post: {
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["AmountBody"];
-        };
-      };
-      responses: {
-        200: {
-          content: {
-            "application/json": components["schemas"]["InvoiceBody"];
-          };
-        };
-        400: {
-          content: {
-            "application/json": components["schemas"]["GenericError"];
-          };
-        };
-      };
-    };
-  };
-  "/invoice/settled": {
-    /** @description Confirms deposit */
-    post: {
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["InvoiceInfo"];
-        };
-      };
-      responses: {
-        /** @description no content */
-        200: {
-          content: never;
-        };
-        400: {
-          content: {
-            "application/json": components["schemas"]["GenericError"];
-          };
-        };
-      };
-    };
-  };
-  "/invoice/check": {
-    /** @description Check invoice payment */
-    get: {
-      responses: {
-        200: {
-          content: {
-            "application/json": components["schemas"]["InvoiceBody"];
-          };
-        };
-        400: {
-          content: {
-            "application/json": components["schemas"]["GenericError"];
-          };
-        };
-      };
-    };
-  };
-  "/invoice/withdraw": {
-    /** @description Confirms deposit payment */
-    post: {
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["InvoiceBody"];
-        };
-      };
-      responses: {
-        /** @description no content */
-        200: {
-          content: never;
-        };
-        400: {
-          content: {
-            "application/json": components["schemas"]["GenericError"];
-          };
-        };
-      };
-    };
-  };
   "/auth/register": {
     /** @description Register an user */
     post: {
@@ -129,7 +48,7 @@ export interface paths {
       responses: {
         200: {
           content: {
-            "application/json": components["schemas"]["UserBody_for_User"];
+            "application/json": components["schemas"]["UserBody_for_User2"];
           };
         };
         400: {
@@ -156,6 +75,104 @@ export interface paths {
       };
     };
   };
+  "/user/me": {
+    /** @description Get logged user */
+    get: {
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["UserBody_for_UserWithoutPassword"];
+          };
+        };
+        404: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
+      };
+    };
+  };
+  "/invoice/create": {
+    /** @description Create an invoice to deposit satoshis */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["AmountBody"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["InvoiceBody"];
+          };
+        };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
+      };
+    };
+  };
+  "/invoice/check": {
+    /** @description Check invoice payment */
+    get: {
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["InvoiceBody2"];
+          };
+        };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
+      };
+    };
+  };
+  "/invoice/withdraw": {
+    /** @description Confirms deposit payment */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["InvoiceBody3"];
+        };
+      };
+      responses: {
+        /** @description no content */
+        200: {
+          content: never;
+        };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
+      };
+    };
+  };
+  "/invoice/settled": {
+    /** @description Confirms deposit */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["InvoiceSettled"];
+        };
+      };
+      responses: {
+        /** @description no content */
+        200: {
+          content: never;
+        };
+        400: {
+          content: {
+            "application/json": components["schemas"]["GenericError"];
+          };
+        };
+      };
+    };
+  };
   "/docs": {
   };
   "/game/pairing": {
@@ -164,7 +181,7 @@ export interface paths {
       responses: {
         200: {
           content: {
-            "application/json": components["schemas"]["GameBody_for_Uuid"];
+            "application/json": components["schemas"]["GameId"];
           };
         };
         400: {
@@ -178,15 +195,10 @@ export interface paths {
   "/game/create": {
     /** @description Create a game */
     post: {
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["GameBody_for_CreateGame"];
-        };
-      };
       responses: {
         200: {
           content: {
-            "application/json": components["schemas"]["GameBody_for_Uuid"];
+            "application/json": components["schemas"]["GameId2"];
           };
         };
         400: {
@@ -208,7 +220,7 @@ export interface paths {
       responses: {
         200: {
           content: {
-            "application/json": components["schemas"]["GameBody_for_GameWithPlayers"];
+            "application/json": components["schemas"]["GameBody"];
           };
         };
         400: {
@@ -227,13 +239,13 @@ export interface paths {
     post: {
       parameters: {
         path: {
-          id: string;
+          game_id: string;
         };
       };
       responses: {
         200: {
           content: {
-            "application/json": components["schemas"]["GameBody_for_Uuid"];
+            "application/json": components["schemas"]["GameId3"];
           };
         };
         400: {
@@ -250,23 +262,6 @@ export interface paths {
     };
   };
   "/game/ws": {
-  };
-  "/user/me": {
-    /** @description Get logged user */
-    get: {
-      responses: {
-        200: {
-          content: {
-            "application/json": components["schemas"]["UserBody_for_UserWithBalance"];
-          };
-        };
-        404: {
-          content: {
-            "application/json": components["schemas"]["GenericError"];
-          };
-        };
-      };
-    };
   };
 }
 
@@ -336,11 +331,6 @@ export interface components {
     };
     /** @enum {string} */
     CookieStyle: "form";
-    CreateGame: {
-      /** Format: int32 */
-      bet_value: number;
-      color_preference?: string | null;
-    };
     /** @description A single encoding definition applied to a single schema property. */
     Encoding: {
       /** @description Determines whether the parameter value SHOULD allow reserved characters, as defined by RFC3986 :/?#[]@!$&'()*+,;= to be included without percent-encoding. The default value is false. This property SHALL be ignored if the request body media type is not application/x-www-form-urlencoded or multipart/form-data. If a value is explicitly defined, then the value of `contentType` (implicit or explicit) SHALL be ignored. */
@@ -380,32 +370,33 @@ export interface components {
       url: string;
       [key: string]: unknown;
     };
-    GameBody_for_CreateGame: {
-      game: components["schemas"]["CreateGame"];
-    };
-    GameBody_for_GameWithPlayers: {
-      game: components["schemas"]["GameWithPlayers"];
-    };
-    GameBody_for_Uuid: {
-      /** Format: uuid */
-      game: string;
-    };
-    GameID: {
-      id: string;
-    };
-    GamePlayer: {
-      /** Format: uuid */
-      id: string;
-      username: string;
-    };
-    GameWithPlayers: {
+    Game: {
       /** Format: int32 */
       bet_value: number;
-      black_player?: components["schemas"]["GamePlayer"] | null;
+      black_player?: components["schemas"]["Player"] | null;
       /** Format: uuid */
       id: string;
       moves: string[];
-      white_player?: components["schemas"]["GamePlayer"] | null;
+      white_player?: components["schemas"]["Player"] | null;
+    };
+    GameBody: {
+      game: components["schemas"]["Game"];
+    };
+    GameId: {
+      /** Format: uuid */
+      game_id: string;
+    };
+    GameId2: {
+      /** Format: uuid */
+      game_id: string;
+    };
+    GameId3: {
+      /** Format: uuid */
+      game_id: string;
+    };
+    GameId4: {
+      /** Format: uuid */
+      id: string;
     };
     GenericError: {
       message: string;
@@ -466,10 +457,13 @@ export interface components {
     InvoiceBody: {
       invoice: string;
     };
-    InvoiceInfo: {
-      /** Format: int32 */
-      amount: number;
-      memo: string;
+    InvoiceBody2: {
+      invoice: string;
+    };
+    InvoiceBody3: {
+      invoice: string;
+    };
+    InvoiceSettled: {
       payment_request: string;
     };
     /** @description License information for the exposed API. */
@@ -785,6 +779,12 @@ export interface components {
     /** @description Holds the relative paths to the individual endpoints and their operations. The path is appended to the URL from the Server Object in order to construct the full URL. The Paths MAY be empty, due to Access Control List (ACL) constraints. */
     Paths: {
       [key: string]: unknown;
+    };
+    Player: {
+      email: string;
+      /** Format: uuid */
+      id: string;
+      username: string;
     };
     /** @enum {string} */
     QueryStyle: "form" | "spaceDelimited" | "pipeDelimited" | "deepObject";
@@ -1252,7 +1252,11 @@ export interface components {
       [key: string]: unknown;
     };
     User: {
+      /** Format: int32 */
+      balance: number;
       email: string;
+      hashed_password: string;
+      /** Format: uuid */
       id: string;
       username: string;
     };
@@ -1265,13 +1269,17 @@ export interface components {
     UserBody_for_User: {
       user: components["schemas"]["User"];
     };
-    UserBody_for_UserWithBalance: {
-      user: components["schemas"]["UserWithBalance"];
+    UserBody_for_User2: {
+      user: components["schemas"]["User"];
     };
-    UserWithBalance: {
+    UserBody_for_UserWithoutPassword: {
+      user: components["schemas"]["UserWithoutPassword"];
+    };
+    UserWithoutPassword: {
       /** Format: int32 */
       balance: number;
       email: string;
+      /** Format: uuid */
       id: string;
       username: string;
     };

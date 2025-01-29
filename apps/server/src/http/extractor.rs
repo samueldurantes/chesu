@@ -1,17 +1,13 @@
-use crate::{http::error::Error, AppState};
+use crate::http::error::Error;
 use axum::RequestPartsExt;
-use axum::{
-    async_trait,
-    extract::{FromRef, FromRequestParts},
-    http::request::Parts,
-};
+use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
 use axum_extra::{headers::Cookie, TypedHeader};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::env;
 use uuid::Uuid;
 
-pub(crate) static COOKIE_NAME: &str = "CHESU_TOKEN";
+pub static COOKIE_NAME: &str = "CHESU_TOKEN";
 
 #[derive(aide::OperationIo)]
 pub struct AuthUser {
@@ -67,7 +63,6 @@ impl AuthUser {
 impl<S> FromRequestParts<S> for AuthUser
 where
     S: Send + Sync,
-    AppState: FromRef<S>,
 {
     type Rejection = Error;
 

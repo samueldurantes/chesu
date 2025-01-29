@@ -1,23 +1,18 @@
-use server::AppState;
-use sqlx::postgres::PgPoolOptions;
+use server::app::{get_dotenv_path, make_app};
+use server::states::db;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenvy::from_path(server::app::get_dotenv_path()).expect(".env file not found");
+    dotenvy::from_path(get_dotenv_path()).expect(".env file not found");
+
+    db::init().await;
 
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let db = PgPoolOptions::new()
-        .max_connections(50)
-        .connect(&std::env::var("DATABASE_URL").expect("DATABASE_URL is void"))
-        .await?;
-
-    sqlx::migrate!().run(&db).await?;
-
-    let (app, _) = server::app::make_app();
+    sqlx::migrate!().run(&db::get()).await?;
 
     let listener =
         tokio::net::TcpListener::bind(&std::env::var("SERVER_URL").expect("SERVER_URL is void"))
@@ -25,9 +20,7 @@ async fn main() -> anyhow::Result<()> {
             .unwrap();
 
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, app.with_state(AppState::new(db)))
-        .await
-        .unwrap();
+    axum::serve(listener, make_app()).await.unwrap();
 
     Ok(())
 }

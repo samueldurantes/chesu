@@ -48,13 +48,11 @@ const Game = () => {
     return 'black';
   };
 
-  const colorLoggedPlayer = getColorLoggedPlayer();
-
   const [opponent, setOpponent] = useState<string>(() => {
     const whitePlayer = queryGame?.game?.white_player;
     const blackPlayer = queryGame?.game?.black_player;
 
-    if (colorLoggedPlayer === 'white') {
+    if (getColorLoggedPlayer() === 'white') {
       if (!blackPlayer) {
         return 'Waiting for opponent...';
       }
@@ -78,6 +76,8 @@ const Game = () => {
   });
 
   useEffect(() => {
+    // if (connection.current) return;
+
     // TODO: Move this to .env file
     const socket = new WebSocket('ws://localhost:3000/game/ws');
 
@@ -100,7 +100,7 @@ const Game = () => {
         return;
       }
 
-      setSan((prevSan) => [...prevSan, receiverData.play_move]);
+      setSan((prevSan) => [...prevSan, receiverData.move_played]);
     });
 
     connection.current = socket;
@@ -121,14 +121,14 @@ const Game = () => {
         </Card>
 
         <Board
-          boardOrientation={colorLoggedPlayer}
+          boardOrientation={getColorLoggedPlayer()}
           san={san}
           onMove={(move) => {
             connection.current?.send(
               JSON.stringify({
                 game_id: params.id,
                 player_id: queryUser?.data?.user?.id,
-                play_move: move,
+                move_played: move,
               })
             );
           }}
