@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use anyhow;
 use axum::http::header::WWW_AUTHENTICATE;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -55,6 +56,13 @@ macro_rules! bad_req {
         Err(Error::BadRequest {
             message: $msg.into(),
         })
+    };
+}
+
+#[macro_export]
+macro_rules! status_500 {
+    () => {
+        |_| Error::Anyhow(anyhow!(""))
     };
 }
 

@@ -1,7 +1,9 @@
-use crate::http::Result;
+use crate::http::{Error, Result};
 use crate::models::game::{GameRecord, PlayerColor};
 use crate::models::rooms_manager::{PairedGame, RoomsManagerTrait};
 use crate::repositories::game_repository::GameRepositoryTrait;
+use crate::status_500;
+use anyhow::anyhow;
 use uuid::Uuid;
 
 pub struct PairingGameService<R: GameRepositoryTrait, M: RoomsManagerTrait> {
@@ -28,7 +30,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
                 self.rooms_manager.create_room(game_id);
                 self.rooms_manager
                     .add_player(game_id, player, Some(PlayerColor::White))
-                    .unwrap();
+                    .map_err(status_500!())?;
 
                 self.game_repository
                     .save_game(GameRecord {
@@ -44,7 +46,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
             PairedGame::ExistingGame(game_id) => {
                 self.rooms_manager
                     .add_player(game_id, player, Some(PlayerColor::Black))
-                    .unwrap();
+                    .map_err(status_500!())?;
 
                 self.game_repository
                     .add_player(game_id, player_id, PlayerColor::Black)
