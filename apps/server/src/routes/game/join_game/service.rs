@@ -1,4 +1,4 @@
-use crate::http::Result;
+use crate::http::{Error, Result};
 use crate::models::rooms_manager::RoomsManagerTrait;
 use crate::repositories::game_repository::GameRepositoryTrait;
 use uuid::Uuid;
@@ -22,7 +22,9 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> JoinGameService<R, M> {
         let player_color = self
             .rooms_manager
             .add_player(room_id, player, None)
-            .unwrap();
+            .map_err(|_| Error::Conflict {
+                message: String::from("The room is full, and no more players can join."),
+            })?;
 
         self.game_repository
             .add_player(room_id, player_id, player_color)

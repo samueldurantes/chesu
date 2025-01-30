@@ -32,6 +32,10 @@ pub enum Error {
     #[error("request path not found")]
     NotFound { message: String },
 
+    /// Return `409 Conflict`
+    #[error("request conflicts with the current state")]
+    Conflict { message: String },
+
     /// Return `422 Unprocessable Entity`
     #[error("error in the request body")]
     UnprocessableEntity {
@@ -78,6 +82,7 @@ impl Error {
             Self::Unauthorized { .. } => StatusCode::UNAUTHORIZED,
             Self::Forbidden => StatusCode::FORBIDDEN,
             Self::NotFound { .. } => StatusCode::NOT_FOUND,
+            Self::Conflict { .. } => StatusCode::CONFLICT,
             Self::UnprocessableEntity { .. } => StatusCode::UNPROCESSABLE_ENTITY,
             Self::Sqlx(_) | Self::Anyhow(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -92,6 +97,10 @@ impl IntoResponse for Error {
             }
 
             Self::NotFound { message } => {
+                return (self.status_code(), Json(json!({ "message": message }))).into_response()
+            }
+
+            Self::Conflict { message } => {
                 return (self.status_code(), Json(json!({ "message": message }))).into_response()
             }
 
