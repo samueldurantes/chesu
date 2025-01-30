@@ -77,18 +77,16 @@ impl Game {
         }
     }
 
-    pub fn get_player_color(&self, player_id: Uuid) -> PlayerColor {
-        if self
-            .white_player
-            .clone()
-            .map(|player| player.id)
-            .unwrap_or_default()
-            == player_id
-        {
-            PlayerColor::White
-        } else {
-            PlayerColor::Black
+    pub fn get_player_color(&self, player_id: Uuid) -> Option<PlayerColor> {
+        if self.white_player.as_ref().map(|p| p.id) == Some(player_id) {
+            return Some(PlayerColor::White);
         }
+
+        if self.black_player.as_ref().map(|p| p.id) == Some(player_id) {
+            return Some(PlayerColor::Black);
+        }
+
+        None
     }
 }
 
