@@ -1,5 +1,6 @@
 use crate::{
-    models::rooms_manager::RoomsManagerTrait, repositories::game_repository::GameRepository,
+    models::rooms_manager::{RoomsManager, RoomsManagerTrait},
+    repositories::game_repository::GameRepository,
 };
 use aide::{transform::TransformOperation, NoApi};
 use axum::{
@@ -9,15 +10,24 @@ use axum::{
     },
     response::IntoResponse,
 };
+use disconnect_service::{DisconnectInfo, DisconnectService};
 use futures::SinkExt;
 use futures::StreamExt;
-use service::PlayMoveService;
+use play_move_service::{MoveInfo, PlayMoveService};
+use serde::Deserialize;
 use tokio::sync::broadcast;
 
-mod service;
+mod disconnect_service;
+mod play_move_service;
 
-fn resource() -> PlayMoveService<GameRepository> {
-    PlayMoveService::new(GameRepository::new())
+fn resource() -> (
+    PlayMoveService<GameRepository>,
+    DisconnectService<GameRepository, RoomsManager>,
+) {
+    (
+        PlayMoveService::new(GameRepository::new()),
+        DisconnectService::new(GameRepository::new(), RoomsManager::new()),
+    )
 }
 
 pub async fn route(NoApi(ws): NoApi<WebSocketUpgrade>) -> NoApi<impl IntoResponse> {
@@ -34,7 +44,7 @@ fn connect_channel(
 }
 
 async fn game_handler(socket: WebSocket) {
-    let play_move_service = resource();
+    let (play_move, disconnect) = resource();
 
     let (mut sender, mut receiver) = socket.split();
     let mut channel = None::<(broadcast::Sender<String>, broadcast::Receiver<String>)>;
@@ -54,13 +64,15 @@ async fn game_handler(socket: WebSocket) {
 
     let mut process_received_messages = {
         tokio::spawn(async move {
-            while let Some(Ok(Message::Text(move_info))) = receiver.next().await {
-                let play_result = play_move_service
-                    .execute(service::MoveInfo::from_str(&move_info).unwrap())
-                    .await;
+            while let Some(Ok(Message::Text(event))) = receiver.next().await {
+                let result = match serde_json::from_str::<Events>(&event) {
+                    Ok(Events::PlayMove(data)) => play_move.execute(data).await,
+                    Ok(Events::Disconnect(data)) => disconnect.execute(data).await,
+                    Err(_) => Err(String::from("Could not build event!")),
+                };
 
-                match play_result {
-                    Ok(()) => tx.send(move_info),
+                match result {
+                    Ok(()) => tx.send(event),
                     Err(err_msg) => tx.send(err_msg),
                 }
                 .unwrap();
@@ -78,6 +90,12 @@ pub fn docs(op: TransformOperation) -> TransformOperation {
     op.tag("Game")
         .description("Websocket for game")
         .hidden(true)
+}
+
+#[derive(Deserialize)]
+enum Events {
+    PlayMove(MoveInfo),
+    Disconnect(DisconnectInfo),
 }
 
 #[cfg(test)]

@@ -1,9 +1,8 @@
-use crate::models::game::{Game, Player};
-use crate::repositories::game_repository::MockGameRepositoryTrait;
-use service::MoveInfo;
-use uuid::Uuid;
-
 use super::*;
+use crate::models::game::{Game, GameState, Player};
+use crate::repositories::game_repository::MockGameRepositoryTrait;
+use play_move_service::MoveInfo;
+use uuid::Uuid;
 
 #[tokio::test]
 async fn test_not_player_try_play_move() {
@@ -22,6 +21,7 @@ async fn test_not_player_try_play_move() {
                 email: "".to_string(),
                 username: "".to_string(),
             }),
+            state: GameState::Waiting,
             bet_value: 0,
             moves: vec![],
         })
@@ -57,8 +57,7 @@ async fn test_not_turned_player_try_play_move() {
                 email: "".to_string(),
                 username: "".to_string(),
             }),
-            bet_value: 0,
-            moves: vec![],
+            ..Default::default()
         })
     });
 
@@ -93,8 +92,7 @@ async fn test_right_player_play_move() {
                 email: "".to_string(),
                 username: "".to_string(),
             }),
-            bet_value: 0,
-            moves: vec![],
+            ..Default::default()
         })
     });
 

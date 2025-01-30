@@ -11,12 +11,6 @@ pub struct MoveInfo {
     pub move_played: String,
 }
 
-impl MoveInfo {
-    pub fn from_str(str: &String) -> Result<Self, String> {
-        serde_json::from_str(str).map_err(|_| String::from("Failed to build the move"))
-    }
-}
-
 pub struct PlayMoveService<R: GameRepositoryTrait> {
     game_repository: R,
 }
