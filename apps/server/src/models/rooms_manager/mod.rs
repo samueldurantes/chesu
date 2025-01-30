@@ -16,14 +16,16 @@ pub enum PairedGame {
 
 #[derive(Debug, Clone)]
 pub struct Room {
+    pub request_key: String,
     pub white_player: Option<Player>,
     pub black_player: Option<Player>,
     pub tx: broadcast::Sender<String>,
 }
 
 impl Room {
-    pub fn new() -> Self {
+    pub fn new(request_key: String) -> Self {
         Self {
+            request_key,
             white_player: None,
             black_player: None,
             tx: broadcast::channel(100).0,
@@ -87,43 +89,39 @@ pub trait RoomsManagerTrait: Send + Sync {
     fn get_room_tx(&self, room_id: Uuid) -> Option<broadcast::Sender<String>>;
 
     fn get_room(&self, room_id: Uuid) -> Option<Room>;
-    fn create_room(&self, room_id: Uuid);
+    fn create_room(&self, room_id: Uuid, request_key: String);
     fn add_player(
         &self,
         room_id: Uuid,
         player: Player,
         color_preference: Option<PlayerColor>,
     ) -> Result<PlayerColor, ()>;
-    fn pair_new_player(&self) -> PairedGame;
+    fn pair_new_player(&self, room_key: String) -> PairedGame;
 }
 
 pub type GameRooms = Arc<Mutex<HashMap<Uuid, Room>>>;
-pub type WaitingRoom = Arc<Mutex<Option<Uuid>>>;
-pub type WaitingRooms = Arc<Mutex<HashMap<String, Uuid>>>;
+pub type Requests = Arc<Mutex<HashMap<String, Uuid>>>;
 
 #[derive(Debug)]
 pub struct RoomsManager {
     game_rooms: GameRooms,
-    waiting_room: WaitingRoom,
-    waiting_rooms: WaitingRooms,
+    requests: Requests,
 }
 
 impl RoomsManager {
     pub fn new() -> Self {
-        let (game_rooms, waiting_room, waiting_rooms) = rooms_manager::get();
+        let (game_rooms, requests) = rooms_manager::get();
 
         Self {
             game_rooms,
-            waiting_room,
-            waiting_rooms,
+            requests,
         }
     }
 
     pub fn _new_empty() -> Self {
         Self {
             game_rooms: Arc::new(Mutex::new(HashMap::new())),
-            waiting_room: Arc::new(Mutex::new(None)),
-            waiting_rooms: Arc::new(Mutex::new(HashMap::new())),
+            requests: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
@@ -145,8 +143,11 @@ impl RoomsManagerTrait for RoomsManager {
             .map(|room| room.clone())
     }
 
-    fn create_room(&self, room_id: Uuid) {
-        self.game_rooms.lock().unwrap().insert(room_id, Room::new());
+    fn create_room(&self, room_id: Uuid, request_key: String) {
+        self.game_rooms
+            .lock()
+            .unwrap()
+            .insert(room_id, Room::new(request_key));
     }
 
     fn add_player(
@@ -163,19 +164,18 @@ impl RoomsManagerTrait for RoomsManager {
             .unwrap()
     }
 
-    fn pair_new_player(&self) -> PairedGame {
-        let mut waiting_room = self.waiting_room.lock().unwrap();
+    fn pair_new_player(&self, key: String) -> PairedGame {
+        let mut waiting_rooms = self.requests.lock().unwrap();
 
-        let (paired_game, new_waiting_room) = match waiting_room.take() {
-            Some(room_id) => (PairedGame::ExistingGame(room_id), None),
+        match waiting_rooms.remove(&key) {
+            Some(room_id) => PairedGame::ExistingGame(room_id),
             None => {
-                let new_room_id = Uuid::new_v4();
-                (PairedGame::NewGame(new_room_id), Some(new_room_id))
-            }
-        };
-        *waiting_room = new_waiting_room;
+                let room_id = Uuid::new_v4();
+                waiting_rooms.insert(key, room_id);
 
-        paired_game
+                PairedGame::NewGame(room_id)
+            }
+        }
     }
 }
 

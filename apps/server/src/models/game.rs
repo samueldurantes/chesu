@@ -35,7 +35,7 @@ impl PlayerColor {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, JsonSchema, FromRow)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, JsonSchema, FromRow, Default)]
 pub struct Player {
     pub id: Uuid,
     pub username: String,

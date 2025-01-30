@@ -12,7 +12,7 @@ fn test_add_player_rooms_manager() {
     let p1_id = player1.id.clone();
     let p2_id = player2.id.clone();
 
-    rooms_manager.create_room(room_id);
+    rooms_manager.create_room(room_id, String::from("123"));
 
     let player1_color = rooms_manager.add_player(room_id, player1, None);
 
@@ -35,7 +35,7 @@ fn test_add_player_rooms_manager() {
 
 #[test]
 fn test_add_player_to_room() {
-    let mut room = Room::new();
+    let mut room = Room::new(String::from("123"));
 
     let player1 = Player::new();
     let player2 = Player::new();
@@ -60,7 +60,7 @@ fn test_add_player_to_room() {
 
 #[test]
 fn test_add_2_players_to_room() {
-    let mut room = Room::new();
+    let mut room = Room::new(String::from(""));
 
     let player1 = Player::new();
     let player2 = Player::new();
@@ -82,7 +82,7 @@ fn test_add_2_players_to_room() {
 
 #[test]
 fn test_two_players_picking_white() {
-    let mut room = Room::new();
+    let mut room = Room::new(String::from(""));
 
     let player1 = Player::new();
     let player2 = Player::new();
@@ -103,7 +103,7 @@ fn test_two_players_picking_white() {
 
 #[test]
 fn test_add_three_players() {
-    let mut room = Room::new();
+    let mut room = Room::new(String::from(""));
 
     let player1 = Player::new();
     let player2 = Player::new();
