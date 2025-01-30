@@ -58,6 +58,7 @@ pub struct Game {
     pub white_player: Option<Player>,
     pub black_player: Option<Player>,
     pub bet_value: i32,
+    pub state: GameState,
     pub moves: Vec<String>,
 }
 
@@ -67,6 +68,7 @@ impl Game {
             id: self.id,
             white_player: self.white_player.map(|player| player.id),
             black_player: self.black_player.map(|player| player.id),
+            state: self.state.to_string(),
             bet_value: self.bet_value,
             moves: self.moves,
         }
@@ -93,11 +95,46 @@ impl Game {
     }
 }
 
+#[derive(Default, Serialize, Deserialize, Clone, JsonSchema)]
+pub enum GameState {
+    #[default]
+    Waiting,
+    Running,
+    Draw,
+    WhiteWin,
+    BlackWin,
+}
+
+impl GameState {
+    pub fn to_string(self) -> String {
+        let result = match self {
+            Self::Waiting => "waiting",
+            Self::Running => "running",
+            Self::Draw => "draw",
+            Self::WhiteWin => "white_win",
+            Self::BlackWin => "black_win",
+        };
+
+        String::from(result)
+    }
+
+    pub fn from_str(state: &str) -> Self {
+        match state {
+            "running" => Self::Running,
+            "draw" => Self::Draw,
+            "white_win" => Self::WhiteWin,
+            "black_win" => Self::BlackWin,
+            _ => Self::Waiting,
+        }
+    }
+}
+
 #[derive(Default, Clone, FromRow)]
 pub struct GameRecord {
     pub id: Uuid,
     pub white_player: Option<Uuid>,
     pub black_player: Option<Uuid>,
+    pub state: String,
     pub bet_value: i32,
     pub moves: Vec<String>,
 }

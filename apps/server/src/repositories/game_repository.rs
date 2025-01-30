@@ -1,4 +1,4 @@
-use crate::models::game::{Game, GameRecord, Player, PlayerColor};
+use crate::models::game::{Game, GameRecord, GameState, Player, PlayerColor};
 
 use crate::http::Result;
 use crate::states::db;
@@ -40,7 +40,7 @@ impl GameRepositoryTrait for GameRepository {
 
     async fn get_game(&self, game_id: Uuid) -> sqlx::Result<Game> {
         let game_record = sqlx::query_as::<_, GameRecord>(
-            r#" SELECT id, white_player, black_player, bet_value, moves FROM games WHERE id = $1 "#,
+            r#" SELECT id, white_player, black_player, bet_value, moves, state FROM games WHERE id = $1 "#,
         )
         .bind(game_id)
         .fetch_one(&self.db)
@@ -61,6 +61,7 @@ impl GameRepositoryTrait for GameRepository {
         let GameRecord {
             id,
             moves,
+            state,
             bet_value,
             ..
         } = game_record;
@@ -69,6 +70,7 @@ impl GameRepositoryTrait for GameRepository {
             id,
             white_player,
             black_player,
+            state: GameState::from_str(&state),
             bet_value,
             moves,
         })
@@ -76,13 +78,14 @@ impl GameRepositoryTrait for GameRepository {
 
     async fn save_game(&self, game: GameRecord) -> Result<()> {
         sqlx::query(
-            r#" INSERT INTO games (id, white_player, black_player, bet_value, moves) VALUES ($1, $2, $3, $4, $5); "#,
+            r#" INSERT INTO games (id, white_player, black_player, bet_value, moves, state) VALUES ($1, $2, $3, $4, $5); "#,
         )
         .bind(game.id)
         .bind(game.white_player)
         .bind(game.black_player)
         .bind(game.bet_value)
         .bind(&game.moves)
+        .bind(game.state)
         .execute(&self.db)
         .await?;
 
@@ -96,7 +99,7 @@ impl GameRepositoryTrait for GameRepository {
         player_color: PlayerColor,
     ) -> Result<()> {
         sqlx::query(&format!(
-            "UPDATE games SET {} = $1 WHERE id = $2; ",
+            "UPDATE games SET {} = $1 WHERE id = $2;",
             player_color.to_string()
         ))
         .bind(player_id)

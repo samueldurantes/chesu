@@ -1,1 +1,0 @@
-ALTER TABLE games ALTER COLUMN white_player SET NOT NULL;
