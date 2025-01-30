@@ -60,30 +60,16 @@ impl Room {
         // let username = player.username.clone();
 
         let player_color = match color_preference {
-            Some(PlayerColor::White) => {
-                if self.white_player.is_some() {
-                    return Err(());
-                }
+            Some(PlayerColor::White) | None if self.white_player.is_none() => {
                 self.white_player = Some(player);
-                PlayerColor::White
+                Ok(PlayerColor::White)
             }
-            Some(PlayerColor::Black) => {
-                if self.black_player.is_some() {
-                    return Err(());
-                }
+            Some(PlayerColor::Black) | None if self.black_player.is_none() => {
                 self.black_player = Some(player);
-                PlayerColor::Black
+                Ok(PlayerColor::Black)
             }
-            None => {
-                if self.white_player.is_none() {
-                    self.white_player = Some(player);
-                    PlayerColor::White
-                } else {
-                    self.black_player = Some(player);
-                    PlayerColor::Black
-                }
-            }
-        };
+            _ => Err(()),
+        }?;
 
         // if self.is_full() {
         //     self.notify_other_player(username);
