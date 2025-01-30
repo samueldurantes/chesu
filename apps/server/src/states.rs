@@ -20,22 +20,26 @@ pub mod db {
 }
 
 pub mod rooms_manager {
-    use crate::models::rooms_manager::{GameRooms, WaitingRoom};
+    use crate::models::rooms_manager::{GameRooms, WaitingRoom, WaitingRooms};
     use std::sync::Mutex;
     use std::{collections::HashMap, sync::Arc};
     use tokio::sync::OnceCell;
 
     static GAME_ROOMS: OnceCell<GameRooms> = OnceCell::const_new();
     static WAITING_ROOM: OnceCell<WaitingRoom> = OnceCell::const_new();
+    static WAITING_ROOMS: OnceCell<WaitingRooms> = OnceCell::const_new();
 
     fn init() {
         GAME_ROOMS
             .set(Arc::new(Mutex::new(HashMap::new())))
             .unwrap();
-        WAITING_ROOM.set(Arc::new(Mutex::new(None))).unwrap()
+        WAITING_ROOM.set(Arc::new(Mutex::new(None))).unwrap();
+        WAITING_ROOMS
+            .set(Arc::new(Mutex::new(HashMap::new())))
+            .unwrap();
     }
 
-    fn get_rooms_manager() -> (GameRooms, WaitingRoom) {
+    fn get_rooms_manager() -> (GameRooms, WaitingRoom, WaitingRooms) {
         let game_rooms = GAME_ROOMS
             .get()
             .expect("Game rooms has not been initialized")
@@ -46,10 +50,15 @@ pub mod rooms_manager {
             .expect("Waiting room has not been initialized")
             .clone();
 
-        (game_rooms, waiting_room)
+        let waitings_rooms = WAITING_ROOMS
+            .get()
+            .expect("Waiting rooms has not been initialized")
+            .clone();
+
+        (game_rooms, waiting_room, waitings_rooms)
     }
 
-    pub fn get() -> (GameRooms, WaitingRoom) {
+    pub fn get() -> (GameRooms, WaitingRoom, WaitingRooms) {
         if GAME_ROOMS.get().is_none() || WAITING_ROOM.get().is_none() {
             init();
         }

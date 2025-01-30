@@ -99,21 +99,23 @@ pub trait RoomsManagerTrait: Send + Sync {
 
 pub type GameRooms = Arc<Mutex<HashMap<Uuid, Room>>>;
 pub type WaitingRoom = Arc<Mutex<Option<Uuid>>>;
+pub type WaitingRooms = Arc<Mutex<HashMap<String, Uuid>>>;
 
 #[derive(Debug)]
 pub struct RoomsManager {
     game_rooms: GameRooms,
     waiting_room: WaitingRoom,
-    // pub waiting_rooms: Arc<Mutex<HashMap<String, Option<Uuid>>>>,
+    waiting_rooms: WaitingRooms,
 }
 
 impl RoomsManager {
     pub fn new() -> Self {
-        let (game_rooms, waiting_room) = rooms_manager::get();
+        let (game_rooms, waiting_room, waiting_rooms) = rooms_manager::get();
 
         Self {
             game_rooms,
             waiting_room,
+            waiting_rooms,
         }
     }
 
@@ -121,6 +123,7 @@ impl RoomsManager {
         Self {
             game_rooms: Arc::new(Mutex::new(HashMap::new())),
             waiting_room: Arc::new(Mutex::new(None)),
+            waiting_rooms: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
