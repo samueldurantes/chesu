@@ -1,11 +1,11 @@
-use crate::http::{extractor::AuthUser, Result};
+use crate::http::{extractor::AuthUser, Error, Result};
 use crate::models::rooms_manager::RoomsManager;
 use crate::repositories::game_repository::GameRepository;
 use aide::transform::TransformOperation;
 use axum::Json;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use service::PairingGameService;
+use service::{GameRequest, PairingGameService};
 use uuid::Uuid;
 
 use crate::http::error::GenericError;
@@ -17,18 +17,30 @@ pub struct GameId {
     pub game_id: Uuid,
 }
 
+#[derive(Serialize, Deserialize, JsonSchema)]
+pub struct GameRequestBody {
+    key: String,
+}
+
 fn resource() -> PairingGameService<GameRepository, RoomsManager> {
     PairingGameService::new(GameRepository::new(), RoomsManager::new())
 }
 
-pub async fn route(auth_user: AuthUser) -> Result<Json<GameId>> {
+pub async fn route(
+    auth_user: AuthUser,
+    Json(payload): Json<GameRequestBody>,
+) -> Result<Json<GameId>> {
     let pairing_service = resource();
 
-    let paired_game = pairing_service.execute(auth_user.user_id).await?;
+    let game_request = GameRequest::from_str(&payload.key).map_err(|_| Error::BadRequest {
+        message: String::from("Invalid game request key"),
+    })?;
 
-    Ok(Json(GameId {
-        game_id: paired_game,
-    }))
+    let game_id = pairing_service
+        .execute(auth_user.user_id, game_request)
+        .await?;
+
+    Ok(Json(GameId { game_id }))
 }
 
 pub fn docs(op: TransformOperation) -> TransformOperation {

@@ -5,55 +5,56 @@ use crate::{
     repositories::game_repository::MockGameRepositoryTrait,
 };
 use mockall::predicate::*;
+use uuid::uuid;
 
 #[tokio::test]
 async fn quick_pairing_service() {
     let mut mock_game_repository = MockGameRepositoryTrait::new();
     let mut mock_rooms_manager = MockRoomsManagerTrait::new();
 
-    let player_id = Uuid::new_v4();
-    let game_id = Uuid::new_v4();
+    let request_key = "w-10-0-0";
     let player = Player {
-        id: player_id,
-        username: String::from("romero"),
-        email: String::from("romero@dias.com"),
+        id: uuid!("5d6cc3e8-8eec-4dab-881f-fddfb831cc41"),
+        ..Default::default()
     };
-    let player_copy = player.clone();
-
-    mock_game_repository
-        .expect_get_player()
-        .with(eq(player_id))
-        .returning(move |_| Ok(player_copy.clone()));
-
-    mock_game_repository
-        .expect_save_game()
-        .withf(move |game_record| {
-            game_record.id == game_id && game_record.white_player == Some(player_id)
-        })
-        .returning(|_| Ok(()));
 
     mock_rooms_manager
         .expect_pair_new_player()
-        .returning(move || PairedGame::NewGame(game_id));
+        .returning(|_| PairedGame::NewGame(uuid!("06d6a0d9-97a8-48d0-9f81-0172c5a81b8a")));
+
+    mock_game_repository
+        .expect_get_player()
+        .with(eq(player.id))
+        .returning(|p_id| {
+            Ok(Player {
+                id: p_id,
+                ..Default::default()
+            })
+        });
 
     mock_rooms_manager
         .expect_create_room()
-        .with(eq(game_id))
+        .with(
+            eq(uuid!("06d6a0d9-97a8-48d0-9f81-0172c5a81b8a")),
+            eq(request_key.to_string()),
+        )
         .return_const(());
 
     mock_rooms_manager
         .expect_add_player()
-        .with(
-            eq(game_id),
-            eq(player.clone()),
-            eq(Some(PlayerColor::White)),
-        )
-        .returning(|_, _, _| Ok(PlayerColor::White));
+        .returning(|_, _, c| Ok(c.unwrap_or(PlayerColor::White)));
 
     let service = PairingGameService::new(mock_game_repository, mock_rooms_manager);
 
-    let result = service.execute(player_id).await;
+    let game_request = GameRequest::from_str(request_key);
+
+    assert!(game_request.is_ok());
+
+    let result = service.execute(player.id, game_request.unwrap()).await;
 
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), game_id);
+    assert_eq!(
+        result.unwrap(),
+        uuid!("06d6a0d9-97a8-48d0-9f81-0172c5a81b8a")
+    );
 }
