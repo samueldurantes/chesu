@@ -42,6 +42,16 @@ pub struct Player {
     pub email: String,
 }
 
+impl Player {
+    pub fn new() -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            username: String::new(),
+            email: String::new(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Default, Clone)]
 pub struct Game {
     pub id: Uuid,
@@ -52,13 +62,6 @@ pub struct Game {
 }
 
 impl Game {
-    // pub fn new_empty() -> Self {
-    //     Self {
-    //         id: Uuid::new_v4(),
-    //         ..Default::default()
-    //     }
-    // }
-
     pub fn to_game_record(self) -> GameRecord {
         GameRecord {
             id: self.id,
