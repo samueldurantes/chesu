@@ -34,19 +34,24 @@ impl Room {
         self.white_player.is_some() && self.black_player.is_some()
     }
 
-    // fn notify_other_player(&self, username: String) {
-    //     self.tx
-    //         .send(
-    //             serde_json::json!({
-    //                "event": "join",
-    //                "data": {
-    //                  "username": username
-    //                 }
-    //             })
-    //             .to_string(),
-    //         )
-    //         .expect("Error on notify other player!");
-    // }
+    fn notify_other_player(&self, player_color: PlayerColor) {
+        let username = match player_color {
+            PlayerColor::White => &self.white_player.as_ref().unwrap().username,
+            PlayerColor::Black => &self.black_player.as_ref().unwrap().username,
+        };
+
+        self.tx
+            .send(
+                serde_json::json!({
+                   "event": "join",
+                   "data": {
+                     "username": username
+                    }
+                })
+                .to_string(),
+            )
+            .unwrap_or(0);
+    }
 
     pub fn add_player(
         &mut self,
@@ -56,8 +61,6 @@ impl Room {
         if self.is_full() {
             return Err(());
         }
-
-        // let username = player.username.clone();
 
         let player_color = match color_preference {
             Some(PlayerColor::White) | None if self.white_player.is_none() => {
@@ -71,9 +74,9 @@ impl Room {
             _ => Err(()),
         }?;
 
-        // if self.is_full() {
-        //     self.notify_other_player(username);
-        // }
+        if self.is_full() {
+            self.notify_other_player(player_color);
+        }
 
         Ok(player_color)
     }
