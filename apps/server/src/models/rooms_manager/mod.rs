@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use super::event::Event;
 use super::game::{Player, PlayerColor};
 use crate::{http::Result, states::rooms_manager};
 use mockall::automock;
@@ -36,23 +37,8 @@ impl Room {
         self.white_player.is_some() && self.black_player.is_some()
     }
 
-    fn notify_other_player(&self, player_color: PlayerColor) {
-        let username = match player_color {
-            PlayerColor::White => &self.white_player.as_ref().unwrap().username,
-            PlayerColor::Black => &self.black_player.as_ref().unwrap().username,
-        };
-
-        self.tx
-            .send(
-                serde_json::json!({
-                   "event": "join",
-                   "data": {
-                     "username": username
-                    }
-                })
-                .to_string(),
-            )
-            .unwrap_or(0);
+    pub fn relay_event(&self, event: Event) {
+        self.tx.send(event.json()).unwrap_or(0);
     }
 
     pub fn add_player(
@@ -77,7 +63,7 @@ impl Room {
         }?;
 
         if self.is_full() {
-            self.notify_other_player(player_color);
+            self.relay_event(Event::Join);
         }
 
         Ok(player_color)
