@@ -178,27 +178,15 @@ export interface paths {
   "/game/pairing": {
     /** @description Quick Pair players to play */
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["GameRequestBody"];
+        };
+      };
       responses: {
         200: {
           content: {
             "application/json": components["schemas"]["GameId"];
-          };
-        };
-        400: {
-          content: {
-            "application/json": components["schemas"]["GenericError"];
-          };
-        };
-      };
-    };
-  };
-  "/game/create": {
-    /** @description Create a game */
-    post: {
-      responses: {
-        200: {
-          content: {
-            "application/json": components["schemas"]["GameId2"];
           };
         };
         400: {
@@ -221,31 +209,6 @@ export interface paths {
         200: {
           content: {
             "application/json": components["schemas"]["GameBody"];
-          };
-        };
-        400: {
-          content: {
-            "application/json": components["schemas"]["GenericError"];
-          };
-        };
-        404: {
-          content: {
-            "application/json": components["schemas"]["GenericError"];
-          };
-        };
-      };
-    };
-    /** @description Join a game */
-    post: {
-      parameters: {
-        path: {
-          game_id: string;
-        };
-      };
-      responses: {
-        200: {
-          content: {
-            "application/json": components["schemas"]["GameId3"];
           };
         };
         400: {
@@ -377,6 +340,7 @@ export interface components {
       /** Format: uuid */
       id: string;
       moves: string[];
+      state: components["schemas"]["GameState"];
       white_player?: components["schemas"]["Player"] | null;
     };
     GameBody: {
@@ -388,16 +352,13 @@ export interface components {
     };
     GameId2: {
       /** Format: uuid */
-      game_id: string;
-    };
-    GameId3: {
-      /** Format: uuid */
-      game_id: string;
-    };
-    GameId4: {
-      /** Format: uuid */
       id: string;
     };
+    GameRequestBody: {
+      key: string;
+    };
+    /** @enum {string} */
+    GameState: "Waiting" | "Running" | "Draw" | "WhiteWin" | "BlackWin";
     GenericError: {
       message: string;
     };

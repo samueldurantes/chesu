@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
+import { v4 as uuidv4 } from 'uuid'
 
 import api from '../../api/api';
 import { Button } from '../ui/Button';
@@ -8,28 +9,16 @@ const HomeActions = () => {
   const navigate = useNavigate();
 
 
-  const { mutateAsync: mutatePairingGame, isPending: isPendingPairGame } = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await api.POST('/game/pairing');
+  const { mutateAsync: mutatePairingGame, isPending } = useMutation({
+    mutationFn: async (key: string) => {
+      console.log(key)
+      const { data, error } = await api.POST('/game/pairing', {
+        body: {
+          key
+        },
+      });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      return data;
-    },
-    onSuccess: (data) => navigate(`/game/${data.game_id}`),
-    // TODO: Show a snackbar with the error message
-    onError: (error) => console.log({ error }),
-  });
-
-  const { mutateAsync: mutateCreateGame, isPending } = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await api.POST('/game/create');
-
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (error) throw new Error(error.message);
 
       return data;
     },
@@ -43,14 +32,14 @@ const HomeActions = () => {
       <Button
         disabled={isPending}
         className="w-full bg-[#3aafff] text-white hover:bg-[#80cfff]"
-        onClick={() => mutateCreateGame()}
+        onClick={() => mutatePairingGame(`w-10-0-0-${uuidv4()}`)}
       >
         Create a game
       </Button>
       <Button
         className="w-full bg-[#3aafff] text-white hover:bg-[#80cfff]"
-        onClick={() => mutatePairingGame()}
-        disabled={isPendingPairGame}
+        onClick={() => mutatePairingGame("w-10-0-0")}
+        disabled={isPending}
       >
         Play
       </Button>
@@ -60,7 +49,7 @@ const HomeActions = () => {
       >
         Play with a computer
       </Button>
-    </div>
+    </div >
   );
 };
 
