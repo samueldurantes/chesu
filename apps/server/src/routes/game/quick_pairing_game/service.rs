@@ -13,11 +13,11 @@ pub struct PairingGameService<R: GameRepositoryTrait, M: RoomsManagerTrait> {
 
 #[derive(Debug, PartialEq)]
 pub struct GameRequest {
-    key: String,
-    player_color: Option<PlayerColor>,
-    _total_time: u8,
-    _turn_time: u8,
-    bet_value: i32,
+    pub key: String,
+    pub player_color: Option<PlayerColor>,
+    pub _total_time: u8,
+    pub _turn_time: u8,
+    pub bet_value: i32,
 }
 
 impl GameRequest {
@@ -94,6 +94,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
                     white_player: room.white_player.map(|p| p.id),
                     black_player: room.black_player.map(|p| p.id),
                     bet_value: game_request.bet_value,
+                    state: String::from("waiting"),
                     ..Default::default()
                 };
 
@@ -104,61 +105,5 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
         };
 
         Ok(paired_game_id)
-    }
-}
-
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_request_key_parsing_1() {
-        let input = "";
-        let result = GameRequest::from_str(input);
-
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_request_key_parsing_2() {
-        let input = "w-10-0-0";
-        let result = GameRequest::from_str(input);
-
-        assert!(result.is_ok());
-        assert_eq!(
-            result,
-            Ok(GameRequest {
-                key: input.to_string(),
-                player_color: Some(PlayerColor::White),
-                _total_time: 10,
-                _turn_time: 0,
-                bet_value: 0,
-            })
-        )
-    }
-
-    #[test]
-    fn test_request_key_parsing_3() {
-        let input = "j-10-0-0";
-        let result = GameRequest::from_str(input);
-
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_request_key_parsing_4() {
-        let input = "b-30-10-10000";
-        let result = GameRequest::from_str(input);
-
-        assert!(result.is_ok());
-        assert_eq!(
-            result,
-            Ok(GameRequest {
-                key: input.to_string(),
-                player_color: Some(PlayerColor::Black),
-                _total_time: 30,
-                _turn_time: 10,
-                bet_value: 10000,
-            })
-        )
     }
 }
