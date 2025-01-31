@@ -78,7 +78,7 @@ impl GameRepositoryTrait for GameRepository {
 
     async fn save_game(&self, game: GameRecord) -> Result<()> {
         sqlx::query(
-            r#" INSERT INTO games (id, white_player, black_player, bet_value, moves, state) VALUES ($1, $2, $3, $4, $5); "#,
+            r#" INSERT INTO games (id, white_player, black_player, bet_value, moves, state) VALUES ($1, $2, $3, $4, $5, $6); "#,
         )
         .bind(game.id)
         .bind(game.white_player)
