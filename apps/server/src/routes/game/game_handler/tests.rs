@@ -1,7 +1,9 @@
 use super::*;
-use crate::models::game::{Game, GameState, Player};
+use crate::models::{
+    event::MoveInfo,
+    game::{Game, GameState, Player},
+};
 use crate::repositories::game_repository::MockGameRepositoryTrait;
-use play_move_service::MoveInfo;
 use uuid::Uuid;
 
 #[tokio::test]
