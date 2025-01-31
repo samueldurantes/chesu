@@ -32,7 +32,7 @@ impl Room {
         }
     }
 
-    fn is_full(&self) -> bool {
+    pub fn is_full(&self) -> bool {
         self.white_player.is_some() && self.black_player.is_some()
     }
 

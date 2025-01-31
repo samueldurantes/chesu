@@ -1,6 +1,10 @@
 use crate::{
-    http::Result, models::game::Game, repositories::game_repository::GameRepository,
-    repositories::game_repository::GameRepositoryTrait,
+    http::Result,
+    models::{
+        game::Game,
+        rooms_manager::{RoomsManager, RoomsManagerTrait},
+    },
+    repositories::game_repository::{GameRepository, GameRepositoryTrait},
 };
 use aide::transform::TransformOperation;
 use axum::{extract::Path, Json};
@@ -20,12 +24,27 @@ pub struct GameBody {
     pub game: Game,
 }
 
-fn resource() -> GameRepository {
-    GameRepository::new()
+fn resource() -> (GameRepository, RoomsManager) {
+    (GameRepository::new(), RoomsManager::new())
 }
 
 pub async fn route(Path(GameId { id: game_id }): Path<GameId>) -> Result<Json<GameBody>> {
-    let game_repository = resource();
+    let (game_repository, rooms_manager) = resource();
+
+    let room = rooms_manager.get_room(game_id);
+
+    if let Some(room) = room {
+        if !room.is_full() {
+            return Ok(Json(GameBody {
+                game: Game {
+                    id: game_id,
+                    white_player: room.white_player,
+                    black_player: room.black_player,
+                    ..Default::default()
+                },
+            }));
+        }
+    }
 
     Ok(Json(GameBody {
         game: game_repository.get_game(game_id).await?,
