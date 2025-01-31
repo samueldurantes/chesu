@@ -95,7 +95,7 @@ impl Game {
     }
 }
 
-#[derive(Default, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Default, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
 pub enum GameState {
     #[default]
     Waiting,

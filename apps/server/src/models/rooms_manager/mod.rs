@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use super::event::Event;
 use super::game::{Player, PlayerColor};
 use crate::{http::Result, states::rooms_manager};
@@ -67,6 +66,11 @@ impl Room {
         }
 
         Ok(player_color)
+    }
+
+    pub fn is_playing(&self, player_id: Uuid) -> bool {
+        Some(player_id) == self.white_player.as_ref().map(|p| p.id)
+            || Some(player_id) == self.black_player.as_ref().map(|p| p.id)
     }
 }
 

@@ -24,6 +24,10 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> DisconnectService<R, M> {
             .get_room(info.game_id)
             .ok_or(String::from("Room not found!"))?;
 
+        if !room.is_playing(info.player_id) {
+            return Ok(());
+        }
+
         if !room.is_full() {
             self.rooms_manager.remove_request(room.request_key);
             self.rooms_manager.remove_room(info.game_id);
@@ -57,9 +61,8 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> DisconnectService<R, M> {
                 .map_err(|m| m.to_string())?;
 
             room.relay_event(Event::GameChangeState(new_game_state));
+            self.rooms_manager.remove_room(info.game_id);
         }
-
-        self.rooms_manager.remove_room(info.game_id);
 
         Ok(())
     }
