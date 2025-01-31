@@ -1,4 +1,4 @@
-use crate::models::game::{Game, GameRecord, GameState, Player, PlayerColor};
+use crate::models::game::{Game, GameRecord, GameState, Player};
 
 use crate::http::Result;
 use crate::states::db;
@@ -11,12 +11,7 @@ pub trait GameRepositoryTrait {
     async fn get_player(&self, user_id: Uuid) -> sqlx::Result<Player>;
     async fn get_game(&self, game_id: Uuid) -> sqlx::Result<Game>;
     async fn save_game(&self, game: GameRecord) -> Result<()>;
-    async fn add_player(
-        &self,
-        game_id: Uuid,
-        player_id: Uuid,
-        player_color: PlayerColor,
-    ) -> Result<()>;
+    async fn update_state(&self, game_id: Uuid, new_state: GameState) -> Result<()>;
     async fn record_move(&self, game_id: Uuid, move_played: String) -> sqlx::Result<()>;
 }
 
@@ -92,20 +87,12 @@ impl GameRepositoryTrait for GameRepository {
         Ok(())
     }
 
-    async fn add_player(
-        &self,
-        game_id: Uuid,
-        player_id: Uuid,
-        player_color: PlayerColor,
-    ) -> Result<()> {
-        sqlx::query(&format!(
-            "UPDATE games SET {} = $1 WHERE id = $2;",
-            player_color.to_string()
-        ))
-        .bind(player_id)
-        .bind(game_id)
-        .execute(&self.db)
-        .await?;
+    async fn update_state(&self, game_id: Uuid, new_state: GameState) -> Result<()> {
+        sqlx::query(&format!("UPDATE games SET state = $1 WHERE id = $2;",))
+            .bind(new_state.to_string())
+            .bind(game_id)
+            .execute(&self.db)
+            .await?;
 
         Ok(())
     }
