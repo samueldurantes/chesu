@@ -83,6 +83,8 @@ pub trait RoomsManagerTrait: Send + Sync {
         color_preference: Option<PlayerColor>,
     ) -> Result<PlayerColor, ()>;
     fn pair_new_player(&self, room_key: String) -> PairedGame;
+    fn remove_request(&self, request_key: String);
+    fn remove_room(&self, room_id: Uuid);
 }
 
 pub type GameRooms = Arc<Mutex<HashMap<Uuid, Room>>>;
@@ -162,6 +164,14 @@ impl RoomsManagerTrait for RoomsManager {
                 PairedGame::NewGame(room_id)
             }
         }
+    }
+
+    fn remove_request(&self, request_key: String) {
+        self.requests.lock().unwrap().remove(&request_key);
+    }
+
+    fn remove_room(&self, room_id: Uuid) {
+        self.game_rooms.lock().unwrap().remove(&room_id);
     }
 }
 
