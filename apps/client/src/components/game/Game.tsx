@@ -47,7 +47,7 @@ const Game = () => {
   });
 
   useEffect(() => {
-    // if (connection.current) return;
+    if (connection.current) return;
 
     // TODO: Move this to .env file
     const socket = new WebSocket('ws://localhost:3000/game/ws');
@@ -58,24 +58,29 @@ const Game = () => {
 
     socket.addEventListener('message', (event) => {
       const receiverData = JSON.parse(event.data);
+      console.log(receiverData)
 
       switch (receiverData?.event) {
-        case "join":
+        case "Join":
           queryClient.refetchQueries({ queryKey: ['game/detail'] });
           break;
         case "PlayMove":
-          setSan((prevSan) => [...prevSan, receiverData.data.move_played]);
+          setSan(prevSan => [...prevSan, receiverData.data.move_played]);
+          break;
+        case "GameChangeState":
+          console.log(receiverData?.data)
           break;
         default: return;
       }
     });
 
+    window.addEventListener("close", () => disconnect(socket));
+    window.addEventListener("popstate", () => disconnect(socket));
+
     connection.current = socket;
 
-    return () => {
-      socket.close();
-    };
   }, [params, queryUser]);
+
 
   const getColorLoggedPlayer = () => {
     if (queryGame?.game?.black_player?.id === queryUser?.data?.user?.id)
@@ -89,6 +94,22 @@ const Game = () => {
       top: getColorLoggedPlayer() !== "white" ? queryGame?.game?.white_player?.username : queryGame?.game?.black_player?.username,
       bottom: getColorLoggedPlayer() === "white" ? queryGame?.game?.white_player?.username : queryGame?.game?.black_player?.username,
     }
+  }
+
+  const disconnect = (socket: WebSocket) => {
+    if (socket.readyState !== WebSocket.OPEN) return;
+
+    socket.send(
+      JSON.stringify({
+        event: "Disconnect",
+        data: {
+          game_id: params.id,
+          player_id: queryUser?.data?.user?.id,
+        }
+      })
+    )
+
+    socket.close();
   }
 
   const playMove = (move: string) => {
