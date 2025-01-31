@@ -93,6 +93,7 @@ pub fn docs(op: TransformOperation) -> TransformOperation {
 }
 
 #[derive(Deserialize)]
+#[serde(tag = "event", content = "data")]
 enum Events {
     PlayMove(MoveInfo),
     Disconnect(DisconnectInfo),
