@@ -1,4 +1,5 @@
-use crate::http::{error::GenericError, extractor::COOKIE_NAME, Result};
+use crate::http::{GenericError, Result};
+use crate::models::COOKIE_NAME;
 use aide::transform::TransformOperation;
 use axum::{
     http::{header::SET_COOKIE, HeaderName},

@@ -1,8 +1,6 @@
 use crate::http::Result;
-use crate::models::event::Event;
-use crate::models::event::MoveInfo;
-use crate::models::rooms_manager::RoomsManagerTrait;
-use crate::repositories::game_repository::GameRepositoryTrait;
+use crate::models::{Event, MoveInfo, RoomsManagerTrait};
+use crate::repositories::GameRepositoryTrait;
 
 pub struct PlayMoveService<R: GameRepositoryTrait, M: RoomsManagerTrait> {
     game_repository: R,
@@ -46,12 +44,8 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PlayMoveService<R, M> {
 mod tests {
     use super::*;
     use crate::http::Error;
-    use crate::models::{
-        event::MoveInfo,
-        game::{Game, GameState},
-        rooms_manager::MockRoomsManagerTrait,
-    };
-    use crate::repositories::game_repository::MockGameRepositoryTrait;
+    use crate::models::{Game, GameState, MockRoomsManagerTrait, MoveInfo};
+    use crate::repositories::MockGameRepositoryTrait;
     use uuid::Uuid;
 
     #[tokio::test]

@@ -1,7 +1,7 @@
 use crate::bad_req;
-use crate::http::client::HttpClient;
+use crate::http::HttpClient;
 use crate::http::{Error, Result};
-use crate::repositories::wallet_repository::{SaveOutgoing, WalletRepositoryTrait};
+use crate::repositories::{SaveOutgoing, WalletRepositoryTrait};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -59,7 +59,7 @@ impl<R: WalletRepositoryTrait, C: HttpClient> WithdrawService<R, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::repositories::wallet_repository::MockWalletRepositoryTrait;
+    use crate::repositories::MockWalletRepositoryTrait;
     use reqwest::Client;
     use uuid::uuid;
 

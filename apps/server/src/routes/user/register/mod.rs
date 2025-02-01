@@ -1,9 +1,10 @@
 use crate::http::{
-    error::{Error, GenericError},
-    extractor::COOKIE_NAME,
-    Result,
+    Result, {Error, GenericError},
 };
-use crate::{models::user::User, repositories::user_repository::UserRepository};
+use crate::{
+    models::{User, COOKIE_NAME},
+    repositories::UserRepository,
+};
 use aide::transform::TransformOperation;
 use axum::{
     http::{header::SET_COOKIE, HeaderName},

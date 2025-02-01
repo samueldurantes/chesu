@@ -1,4 +1,4 @@
-use crate::http::error::Error;
+use crate::http::Error;
 use axum::RequestPartsExt;
 use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
 use axum_extra::{headers::Cookie, TypedHeader};

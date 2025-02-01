@@ -1,5 +1,5 @@
-use crate::repositories::wallet_repository::{SaveIncoming, WalletRepository};
-use crate::{http::Result, repositories::wallet_repository::WalletRepositoryTrait};
+use crate::http::Result;
+use crate::repositories::{SaveIncoming, WalletRepository, WalletRepositoryTrait};
 use aide::transform::TransformOperation;
 use axum::Json;
 use lightning_invoice::Bolt11Invoice;
@@ -7,7 +7,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use crate::http::error::GenericError;
+use crate::http::GenericError;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct InvoiceSettled {

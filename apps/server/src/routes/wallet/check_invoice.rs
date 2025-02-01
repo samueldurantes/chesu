@@ -1,11 +1,12 @@
-use crate::http::{extractor::AuthUser, Result};
-use crate::repositories::wallet_repository::{WalletRepository, WalletRepositoryTrait};
+use crate::http::Result;
+use crate::models::AuthUser;
+use crate::repositories::{WalletRepository, WalletRepositoryTrait};
 use aide::transform::TransformOperation;
 use axum::Json;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::http::error::GenericError;
+use crate::http::GenericError;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct InvoiceBody {

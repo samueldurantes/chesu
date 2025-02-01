@@ -1,11 +1,8 @@
 use uuid::Uuid;
 
-use crate::models::{
-    event::{DisconnectInfo, Event},
-    game::{Game, GameState},
-};
-use crate::repositories::game_repository::GameRepositoryTrait;
-use crate::{http::Result, models::rooms_manager::RoomsManagerTrait};
+use crate::http::Result;
+use crate::models::{DisconnectInfo, Event, Game, GameState, RoomsManagerTrait};
+use crate::repositories::GameRepositoryTrait;
 
 pub struct DisconnectService<R: GameRepositoryTrait, M: RoomsManagerTrait> {
     game_repository: R,
@@ -63,12 +60,8 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> DisconnectService<R, M> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{
-        event::DisconnectInfo,
-        game::{Game, GameState},
-        rooms_manager::{MockRoomsManagerTrait, Room},
-    };
-    use crate::repositories::game_repository::MockGameRepositoryTrait;
+    use crate::models::{DisconnectInfo, Game, GameState, MockRoomsManagerTrait, Room};
+    use crate::repositories::MockGameRepositoryTrait;
     use tokio::sync::broadcast;
     use uuid::Uuid;
 

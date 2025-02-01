@@ -1,6 +1,7 @@
 use crate::{
-    http::{extractor::AuthUser, Result},
-    repositories::user_repository::{UserRepository, UserRepositoryTrait},
+    http::Result,
+    models::AuthUser,
+    repositories::{UserRepository, UserRepositoryTrait},
 };
 use aide::transform::TransformOperation;
 use axum::Json;
@@ -8,7 +9,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::http::error::GenericError;
+use crate::http::GenericError;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct UserBody<T> {
@@ -30,7 +31,7 @@ fn resource() -> UserRepository {
 pub async fn route(auth_user: AuthUser) -> Result<Json<UserBody<UserWithoutPassword>>> {
     let user_repository = resource();
 
-    let crate::models::user::User {
+    let crate::models::User {
         id,
         email,
         username,

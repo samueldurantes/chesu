@@ -1,6 +1,6 @@
-use crate::http::{extractor::AuthUser, Error, Result};
-use crate::models::user::User;
-use crate::repositories::user_repository::UserRepositoryTrait;
+use crate::http::{Error, Result};
+use crate::models::{AuthUser, User};
+use crate::repositories::UserRepositoryTrait;
 use anyhow::Context;
 use argon2::{Argon2, PasswordHash};
 

@@ -1,8 +1,7 @@
-use std::str::FromStr;
-
-use crate::http::error::Error;
-use crate::http::{extractor::AuthUser, Result};
-use crate::repositories::wallet_repository::WalletRepository;
+use crate::http::Error;
+use crate::http::Result;
+use crate::models::AuthUser;
+use crate::repositories::WalletRepository;
 use aide::transform::TransformOperation;
 use axum::Json;
 use lightning_invoice::Bolt11Invoice;
@@ -10,8 +9,9 @@ use reqwest::Client;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use service::{WithdrawInput, WithdrawService};
+use std::str::FromStr;
 
-use crate::http::error::GenericError;
+use crate::http::GenericError;
 
 mod service;
 

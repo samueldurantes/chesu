@@ -1,9 +1,6 @@
 use crate::{
-    models::{
-        event::Event,
-        rooms_manager::{RoomsManager, RoomsManagerTrait},
-    },
-    repositories::game_repository::GameRepository,
+    models::{Event, RoomsManager, RoomsManagerTrait},
+    repositories::GameRepository,
 };
 use aide::{transform::TransformOperation, NoApi};
 use axum::{
@@ -40,7 +37,7 @@ pub async fn route(NoApi(ws): NoApi<WebSocketUpgrade>) -> NoApi<impl IntoRespons
 fn connect_channel(
     room_id: String,
 ) -> Option<(broadcast::Sender<String>, broadcast::Receiver<String>)> {
-    let rooms_manager = crate::models::rooms_manager::RoomsManager::new();
+    let rooms_manager = crate::models::RoomsManager::new();
     let tx = rooms_manager
         .get_room_tx(uuid::Uuid::parse_str(&room_id).unwrap())
         .ok();

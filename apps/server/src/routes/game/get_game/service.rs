@@ -1,10 +1,8 @@
 use uuid::Uuid;
 
 use crate::http::{Error, Result};
-use crate::models::game::Player;
-use crate::models::rooms_manager::RoomsManagerTrait;
-use crate::repositories::game_repository::GameRepositoryTrait;
-use crate::repositories::game_repository::GameWithPlayers;
+use crate::models::{Player, RoomsManagerTrait};
+use crate::repositories::{GameRepositoryTrait, GameWithPlayers};
 
 pub struct GetGameService<R: GameRepositoryTrait, M: RoomsManagerTrait> {
     game_repository: R,
@@ -58,8 +56,8 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> GetGameService<R, M> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        models::rooms_manager::{MockRoomsManagerTrait, Room},
-        repositories::game_repository::MockGameRepositoryTrait,
+        models::{MockRoomsManagerTrait, Room},
+        repositories::MockGameRepositoryTrait,
     };
     use tokio::sync::broadcast;
     use uuid::uuid;

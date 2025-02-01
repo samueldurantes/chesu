@@ -1,7 +1,7 @@
-pub mod client;
-pub mod error;
-pub mod extractor;
+mod client;
+pub use client::*;
 
-pub use error::Error;
+mod error;
+pub use error::*;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

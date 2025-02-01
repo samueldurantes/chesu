@@ -1,9 +1,7 @@
 use crate::http::{Error, Result};
 use crate::internal_error;
-use crate::models::game::Game;
-use crate::models::game_request::GameRequest;
-use crate::models::rooms_manager::{PairedGame, RoomsManagerTrait};
-use crate::repositories::game_repository::GameRepositoryTrait;
+use crate::models::{Game, GameRequest, PairedGame, RoomsManagerTrait};
+use crate::repositories::GameRepositoryTrait;
 use uuid::Uuid;
 
 pub struct PairingGameService<R: GameRepositoryTrait, M: RoomsManagerTrait> {
@@ -57,12 +55,8 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::game_request::GameRequest;
-    use crate::models::rooms_manager::PairedGame;
-    use crate::{
-        models::{game::Player, game::PlayerColor, rooms_manager::MockRoomsManagerTrait},
-        repositories::game_repository::MockGameRepositoryTrait,
-    };
+    use crate::models::{GameRequest, MockRoomsManagerTrait, PairedGame, Player, PlayerColor};
+    use crate::repositories::MockGameRepositoryTrait;
     use mockall::predicate::*;
     use uuid::uuid;
 

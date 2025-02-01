@@ -1,7 +1,7 @@
 use crate::{
     http::Result,
-    models::rooms_manager::RoomsManager,
-    repositories::game_repository::{GameRepository, GameWithPlayers},
+    models::RoomsManager,
+    repositories::{GameRepository, GameWithPlayers},
 };
 use aide::transform::TransformOperation;
 use axum::{extract::Path, Json};
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use service::GetGameService;
 use uuid::Uuid;
 
-use crate::http::error::GenericError;
+use crate::http::GenericError;
 
 mod service;
 

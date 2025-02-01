@@ -1,5 +1,5 @@
 use crate::http::Result;
-use crate::models::game::{Game, GameState, Player};
+use crate::models::{Game, GameState, Player};
 use crate::states::db;
 use mockall::automock;
 use schemars::JsonSchema;

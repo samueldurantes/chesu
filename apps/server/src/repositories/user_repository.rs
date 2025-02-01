@@ -5,7 +5,7 @@ use sqlx::prelude::FromRow;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
-use crate::models::user::User;
+use crate::models::User;
 
 pub struct SaveUser {
     pub username: String,

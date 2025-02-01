@@ -1,7 +1,6 @@
-use crate::http::{extractor::AuthUser, Error, Result};
-use crate::models::game_request::GameRequest;
-use crate::models::rooms_manager::RoomsManager;
-use crate::repositories::game_repository::GameRepository;
+use crate::http::{Error, Result};
+use crate::models::{AuthUser, GameRequest, RoomsManager};
+use crate::repositories::GameRepository;
 use aide::transform::TransformOperation;
 use axum::Json;
 use schemars::JsonSchema;
@@ -9,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use service::PairingGameService;
 use uuid::Uuid;
 
-use crate::http::error::GenericError;
+use crate::http::GenericError;
 
 mod service;
 

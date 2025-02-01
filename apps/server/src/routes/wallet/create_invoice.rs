@@ -1,12 +1,10 @@
-use crate::http::client::HttpClient;
-use crate::http::{error::Error, extractor::AuthUser, Result};
+use crate::http::{Error, GenericError, HttpClient, Result};
+use crate::models::AuthUser;
 use aide::transform::TransformOperation;
 use axum::Json;
 use reqwest::Client;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-use crate::http::error::GenericError;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct AmountBody {

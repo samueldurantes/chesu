@@ -20,7 +20,7 @@ pub mod db {
 }
 
 pub mod rooms_manager {
-    use crate::models::rooms_manager::{GameRooms, Requests};
+    use crate::models::{GameRooms, Requests};
     use std::sync::Mutex;
     use std::{collections::HashMap, sync::Arc};
     use tokio::sync::OnceCell;
