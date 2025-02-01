@@ -10,6 +10,7 @@ use uuid::Uuid;
 #[tokio::test]
 async fn test_not_player_try_play_move() {
     let mut mock_game_repository = MockGameRepositoryTrait::new();
+    let mock_rooms_manager = MockRoomsManagerTrait::new();
 
     mock_game_repository.expect_get_game().returning(|_| {
         Ok(Game {
@@ -29,7 +30,7 @@ async fn test_not_player_try_play_move() {
             moves: vec![],
         })
     });
-    let service = PlayMoveService::new(mock_game_repository);
+    let service = PlayMoveService::new(mock_game_repository, mock_rooms_manager);
 
     let input = MoveInfo {
         player_id: Uuid::new_v4(),
@@ -46,6 +47,7 @@ async fn test_not_player_try_play_move() {
 #[tokio::test]
 async fn test_not_turned_player_try_play_move() {
     let mut mock_game_repository = MockGameRepositoryTrait::new();
+    let mock_rooms_manager = MockRoomsManagerTrait::new();
 
     mock_game_repository.expect_get_game().returning(|_| {
         Ok(Game {
@@ -64,7 +66,7 @@ async fn test_not_turned_player_try_play_move() {
         })
     });
 
-    let service = PlayMoveService::new(mock_game_repository);
+    let service = PlayMoveService::new(mock_game_repository, mock_rooms_manager);
 
     let input = MoveInfo {
         player_id: uuid::uuid!("06d6a0d9-97a8-48d0-9f81-0172c5a81b8a"),
@@ -81,6 +83,7 @@ async fn test_not_turned_player_try_play_move() {
 #[tokio::test]
 async fn test_right_player_play_move() {
     let mut mock_game_repository = MockGameRepositoryTrait::new();
+    let mock_rooms_manager = MockRoomsManagerTrait::new();
 
     mock_game_repository.expect_get_game().returning(|_| {
         Ok(Game {
@@ -104,7 +107,7 @@ async fn test_right_player_play_move() {
         .once()
         .returning(|_, _| Ok(()));
 
-    let service = PlayMoveService::new(mock_game_repository);
+    let service = PlayMoveService::new(mock_game_repository, mock_rooms_manager);
 
     let input = MoveInfo {
         player_id: uuid::uuid!("06d6a0d9-97a8-48d0-9f81-0172c5a81b8a"),
@@ -120,6 +123,7 @@ async fn test_right_player_play_move() {
 #[tokio::test]
 async fn test_game_not_found() {
     let mut mock_game_repository = MockGameRepositoryTrait::new();
+    let mock_rooms_manager = MockRoomsManagerTrait::new();
 
     mock_game_repository
         .expect_get_game()
@@ -132,7 +136,7 @@ async fn test_game_not_found() {
         move_played: String::from("e4"),
     };
 
-    let service = PlayMoveService::new(mock_game_repository);
+    let service = PlayMoveService::new(mock_game_repository, mock_rooms_manager);
 
     let result = service.execute(input).await;
 

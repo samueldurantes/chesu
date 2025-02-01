@@ -1,15 +1,21 @@
 use crate::http::Result;
+use crate::models::event::Event;
 use crate::models::event::MoveInfo;
 use crate::models::game::GameState;
+use crate::models::rooms_manager::RoomsManagerTrait;
 use crate::repositories::game_repository::GameRepositoryTrait;
 
-pub struct PlayMoveService<R: GameRepositoryTrait> {
+pub struct PlayMoveService<R: GameRepositoryTrait, M: RoomsManagerTrait> {
     game_repository: R,
+    rooms_manager: M,
 }
 
-impl<R: GameRepositoryTrait> PlayMoveService<R> {
-    pub fn new(game_repository: R) -> Self {
-        Self { game_repository }
+impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PlayMoveService<R, M> {
+    pub fn new(game_repository: R, rooms_manager: M) -> Self {
+        Self {
+            game_repository,
+            rooms_manager,
+        }
     }
 
     pub async fn execute(
@@ -32,11 +38,27 @@ impl<R: GameRepositoryTrait> PlayMoveService<R> {
             (_, _) => Err(String::from("It's not your turn!")),
         }?;
 
-        if game.moves.len() == 1 {
+        let game_state = game
+            .check_move(move_played.clone())
+            .map_err(|_| String::from("Invalid move."))?;
+
+        if let Some(new_game_state) = game_state {
             self.game_repository
-                .update_state(game_id, GameState::Running)
+                .update_state(game_id, new_game_state.clone())
                 .await
-                .map_err(|_| String::from("Move record failed!"))?;
+                .map_err(|_| String::from("Update state failed!"))?;
+
+            match new_game_state {
+                GameState::Running => {}
+                new_game_state => {
+                    let room = self
+                        .rooms_manager
+                        .get_room(game_id)
+                        .ok_or(String::from("Room not found!"))?;
+
+                    room.relay_event(Event::GameChangeState(new_game_state));
+                }
+            }
         }
 
         self.game_repository

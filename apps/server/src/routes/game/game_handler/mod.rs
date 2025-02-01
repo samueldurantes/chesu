@@ -24,11 +24,11 @@ mod disconnect_service;
 mod play_move_service;
 
 fn resource() -> (
-    PlayMoveService<GameRepository>,
+    PlayMoveService<GameRepository, RoomsManager>,
     DisconnectService<GameRepository, RoomsManager>,
 ) {
     (
-        PlayMoveService::new(GameRepository::new()),
+        PlayMoveService::new(GameRepository::new(), RoomsManager::new()),
         DisconnectService::new(GameRepository::new(), RoomsManager::new()),
     )
 }

@@ -2,9 +2,11 @@
 use rand::random;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use shakmaty::{san::San, Chess, Color, Outcome, Position};
 use sqlx::prelude::FromRow;
-use uuid::Uuid;
+use std::str::FromStr;
 
+use uuid::Uuid;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PlayerColor {
     White,
@@ -92,6 +94,44 @@ impl Game {
         }
 
         None
+    }
+
+    pub fn check_move(&self, mv: String) -> Result<Option<GameState>, ()> {
+        let mut position = Chess::default();
+
+        let mut moves = self.moves.clone();
+        moves.push(mv);
+
+        for san_move in moves.iter() {
+            let parsed_move = San::from_str(san_move)
+                .map_err(|_| ())?
+                .to_move(&position)
+                .map_err(|_| ())?;
+
+            position = position.play(&parsed_move).map_err(|_| ())?;
+        }
+
+        let new_game_state = match position.outcome() {
+            Some(Outcome::Decisive { winner }) => match winner {
+                Color::White => Some(GameState::WhiteWin),
+                Color::Black => Some(GameState::BlackWin),
+            },
+            Some(Outcome::Draw) => Some(GameState::Draw),
+            None => None,
+        }
+        .unwrap_or_else(|| {
+            if moves.len() >= 2 {
+                GameState::Running
+            } else {
+                GameState::Waiting
+            }
+        });
+
+        if self.state == new_game_state {
+            return Ok(None);
+        }
+
+        Ok(Some(new_game_state))
     }
 }
 
