@@ -43,12 +43,12 @@ pub struct GameWithPlayers {
 
 #[automock]
 pub trait GameRepositoryTrait {
-    async fn get_player(&self, user_id: Uuid) -> sqlx::Result<Player>;
-    async fn get_game_with_players(&self, game_id: Uuid) -> sqlx::Result<GameWithPlayers>;
-    async fn get_game(&self, game_id: Uuid) -> sqlx::Result<Game>;
+    async fn get_player(&self, user_id: Uuid) -> Result<Player>;
+    async fn get_game_with_players(&self, game_id: Uuid) -> Result<GameWithPlayers>;
+    async fn get_game(&self, game_id: Uuid) -> Result<Game>;
     async fn save_game(&self, game: Game) -> Result<()>;
     async fn update_state(&self, game_id: Uuid, new_state: GameState) -> Result<()>;
-    async fn record_move(&self, game_id: Uuid, move_played: String) -> sqlx::Result<()>;
+    async fn record_move(&self, game_id: Uuid, move_played: String) -> Result<()>;
 }
 
 pub struct GameRepository {
@@ -62,14 +62,16 @@ impl GameRepository {
 }
 
 impl GameRepositoryTrait for GameRepository {
-    async fn get_player(&self, user_id: Uuid) -> sqlx::Result<Player> {
-        sqlx::query_as::<_, Player>(r#" SELECT id, username, email FROM users WHERE id = $1 "#)
-            .bind(user_id)
-            .fetch_one(&self.db)
-            .await
+    async fn get_player(&self, user_id: Uuid) -> Result<Player> {
+        Ok(
+            sqlx::query_as::<_, Player>(r#" SELECT id, username, email FROM users WHERE id = $1 "#)
+                .bind(user_id)
+                .fetch_one(&self.db)
+                .await?,
+        )
     }
 
-    async fn get_game_with_players(&self, game_id: Uuid) -> sqlx::Result<GameWithPlayers> {
+    async fn get_game_with_players(&self, game_id: Uuid) -> Result<GameWithPlayers> {
         let game = sqlx::query_as::<_, GameRecord>(
             r#" SELECT id, white_player, black_player, bet_value, moves, state FROM games WHERE id = $1 "#,
         )
@@ -87,7 +89,7 @@ impl GameRepositoryTrait for GameRepository {
         })
     }
 
-    async fn get_game(&self, game_id: Uuid) -> sqlx::Result<Game> {
+    async fn get_game(&self, game_id: Uuid) -> Result<Game> {
         let game = sqlx::query_as::<_, GameRecord>(
             r#" SELECT id, white_player, black_player, bet_value, moves, state FROM games WHERE id = $1 "#,
         )
@@ -124,7 +126,7 @@ impl GameRepositoryTrait for GameRepository {
         Ok(())
     }
 
-    async fn record_move(&self, game_id: Uuid, move_played: String) -> sqlx::Result<()> {
+    async fn record_move(&self, game_id: Uuid, move_played: String) -> Result<()> {
         sqlx::query(r#" UPDATE games SET moves = array_append(moves, $1) WHERE id = $2 "#)
             .bind(move_played)
             .bind(game_id)

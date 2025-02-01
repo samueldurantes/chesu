@@ -1,5 +1,4 @@
 use crate::http::Result;
-use anyhow::anyhow;
 use axum::async_trait;
 use reqwest::Client;
 use reqwest::Response;
@@ -21,6 +20,6 @@ impl HttpClient for Client {
             .send()
             .await
             .and_then(|r| r.error_for_status())
-            .map_err(|_| crate::Error::Anyhow(anyhow!("Failed to send request")))
+            .map_err(|_| crate::Error::InternalServerError)
     }
 }

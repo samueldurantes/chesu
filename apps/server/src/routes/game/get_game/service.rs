@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use uuid::Uuid;
 
 use crate::http::{Error, Result};
@@ -29,32 +28,27 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> GetGameService<R, M> {
     }
 
     pub async fn execute(&self, room_id: Uuid) -> Result<GameWithPlayers> {
-        let room = self.rooms_manager.get_room(room_id);
+        let room = self.rooms_manager.get_room(room_id)?;
 
-        if let Some(room) = room {
-            if !room.is_full() {
-                let (white_player, black_player) = match (room.white_player, room.black_player) {
-                    (Some(player_id), None) => Ok((
-                        self.game_repository.get_player(player_id).await?,
-                        get_mocked_player(),
-                    )),
-                    (None, Some(player_id)) => Ok((
-                        get_mocked_player(),
-                        self.game_repository.get_player(player_id).await?,
-                    )),
-                    _ => Err(Error::Anyhow(anyhow!(
-                        "Something went wrong on room {}",
-                        room_id
-                    ))),
-                }?;
+        if !room.is_full() {
+            let (white_player, black_player) = match (room.white_player, room.black_player) {
+                (Some(player_id), None) => Ok((
+                    self.game_repository.get_player(player_id).await?,
+                    get_mocked_player(),
+                )),
+                (None, Some(player_id)) => Ok((
+                    get_mocked_player(),
+                    self.game_repository.get_player(player_id).await?,
+                )),
+                _ => Err(Error::InternalServerError),
+            }?;
 
-                return Ok(GameWithPlayers {
-                    id: room_id,
-                    white_player,
-                    black_player,
-                    ..Default::default()
-                });
-            }
+            return Ok(GameWithPlayers {
+                id: room_id,
+                white_player,
+                black_player,
+                ..Default::default()
+            });
         }
 
         Ok(self.game_repository.get_game_with_players(room_id).await?)

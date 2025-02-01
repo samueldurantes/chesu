@@ -1,9 +1,8 @@
 use crate::http::{Error, Result};
+use crate::internal_error;
 use crate::models::game::{Game, PlayerColor};
 use crate::models::rooms_manager::{PairedGame, RoomsManagerTrait};
 use crate::repositories::game_repository::GameRepositoryTrait;
-use crate::status_500;
-use anyhow::anyhow;
 use uuid::Uuid;
 
 pub struct PairingGameService<R: GameRepositoryTrait, M: RoomsManagerTrait> {
@@ -74,23 +73,20 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
             PairedGame::NewGame(game_id) => {
                 self.rooms_manager.create_room(game_id, game_request.key);
                 self.rooms_manager
-                    .add_player(game_id, player_id, game_request.player_color)
-                    .map_err(status_500!())?;
+                    .add_player(game_id, player_id, game_request.player_color)?;
 
                 game_id
             }
 
             PairedGame::ExistingGame(game_id) => {
-                self.rooms_manager
-                    .add_player(game_id, player_id, None)
-                    .map_err(status_500!())?;
+                self.rooms_manager.add_player(game_id, player_id, None)?;
 
                 let room = self.rooms_manager.get_room(game_id).unwrap();
 
                 let game = Game {
                     id: game_id,
-                    white_player: room.white_player.ok_or(Error::Anyhow(anyhow!("")))?,
-                    black_player: room.black_player.ok_or(Error::Anyhow(anyhow!("")))?,
+                    white_player: room.white_player.ok_or(internal_error!())?,
+                    black_player: room.black_player.ok_or(internal_error!())?,
                     bet_value: game_request.bet_value,
                     ..Default::default()
                 };

@@ -1,4 +1,4 @@
-use crate::http::Result;
+use crate::http::{Error, Result};
 use crate::models::event::Event;
 use crate::models::event::MoveInfo;
 use crate::models::game::GameState;
@@ -26,35 +26,26 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PlayMoveService<R, M> {
             move_played,
         }: MoveInfo,
     ) -> Result<(), String> {
-        let game = self
-            .game_repository
-            .get_game(game_id)
-            .await
-            .map_err(|_| String::from("Game not found!"))?;
+        let game = self.game_repository.get_game(game_id).await?;
 
-        match (game.get_player_color(player_id), game.get_turn_color()) {
-            (None, _) => Err(String::from("You are not playing this game!")),
-            (Some(player_color), turn_color) if player_color == turn_color => Ok(()),
-            (_, _) => Err(String::from("It's not your turn!")),
-        }?;
+        if game.get_player_color(player_id)? != game.get_turn_color() {
+            return Err(Error::BadRequest {
+                message: String::from("It's not your turn!"),
+            }
+            .to_string());
+        }
 
-        let game_state = game
-            .check_move(move_played.clone())
-            .map_err(|_| String::from("Invalid move."))?;
+        let game_state = game.check_move(move_played.clone())?;
 
         if let Some(new_game_state) = game_state {
             self.game_repository
                 .update_state(game_id, new_game_state.clone())
-                .await
-                .map_err(|_| String::from("Update state failed!"))?;
+                .await?;
 
             match new_game_state {
                 GameState::Running => {}
                 new_game_state => {
-                    let room = self
-                        .rooms_manager
-                        .get_room(game_id)
-                        .ok_or(String::from("Room not found!"))?;
+                    let room = self.rooms_manager.get_room(game_id)?;
 
                     room.relay_event(Event::GameChangeState(new_game_state));
                 }
@@ -63,8 +54,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PlayMoveService<R, M> {
 
         self.game_repository
             .record_move(game_id, move_played)
-            .await
-            .map_err(|_| String::from("Move record failed!"))?;
+            .await?;
 
         Ok(())
     }

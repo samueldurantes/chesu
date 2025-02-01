@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use crate::http::{Error, Result};
 use rand::random;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -64,6 +65,12 @@ pub struct Game {
     pub moves: Vec<String>,
 }
 
+fn invalid_move() -> Error {
+    Error::BadRequest {
+        message: String::from("Invalid move!"),
+    }
+}
+
 impl Game {
     pub fn get_turn_color(&self) -> PlayerColor {
         match self.moves.len() % 2 {
@@ -72,15 +79,17 @@ impl Game {
         }
     }
 
-    pub fn get_player_color(&self, player_id: Uuid) -> Option<PlayerColor> {
+    pub fn get_player_color(&self, player_id: Uuid) -> Result<PlayerColor> {
         match player_id {
-            player if self.white_player == player => Some(PlayerColor::White),
-            player if self.black_player == player => Some(PlayerColor::Black),
-            _ => None,
+            player if self.white_player == player => Ok(PlayerColor::White),
+            player if self.black_player == player => Ok(PlayerColor::Black),
+            _ => Err(Error::BadRequest {
+                message: String::from("You are not playing this game!"),
+            }),
         }
     }
 
-    pub fn check_move(&self, mv: String) -> Result<Option<GameState>, ()> {
+    pub fn check_move(&self, mv: String) -> Result<Option<GameState>> {
         let mut position = Chess::default();
 
         let mut moves = self.moves.clone();
@@ -88,11 +97,11 @@ impl Game {
 
         for san_move in moves.iter() {
             let parsed_move = San::from_str(san_move)
-                .map_err(|_| ())?
+                .map_err(|_| invalid_move())?
                 .to_move(&position)
-                .map_err(|_| ())?;
+                .map_err(|_| invalid_move())?;
 
-            position = position.play(&parsed_move).map_err(|_| ())?;
+            position = position.play(&parsed_move).map_err(|_| invalid_move())?;
         }
 
         let new_game_state = match position.outcome() {

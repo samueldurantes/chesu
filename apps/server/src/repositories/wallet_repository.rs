@@ -1,3 +1,4 @@
+use crate::http::Result;
 use crate::states::db;
 use sqlx::{prelude::FromRow, Pool, Postgres};
 use uuid::Uuid;
@@ -31,10 +32,10 @@ struct ReturnedInvoice {
 }
 
 pub trait WalletRepositoryTrait {
-    async fn save_incoming(&self, info: SaveIncoming) -> sqlx::Result<Uuid>;
-    async fn save_outgoing(&self, info: SaveOutgoing) -> sqlx::Result<Uuid>;
-    async fn get_balance(&self, user_id: Uuid) -> sqlx::Result<i32>;
-    async fn get_invoice(&self, user_id: Uuid) -> sqlx::Result<String>;
+    async fn save_incoming(&self, info: SaveIncoming) -> Result<Uuid>;
+    async fn save_outgoing(&self, info: SaveOutgoing) -> Result<Uuid>;
+    async fn get_balance(&self, user_id: Uuid) -> Result<i32>;
+    async fn get_invoice(&self, user_id: Uuid) -> Result<String>;
 }
 
 pub struct WalletRepository {
@@ -73,14 +74,14 @@ async fn save_transaction(db: &Pool<Postgres>, info: SaveTransaction) -> sqlx::R
 }
 
 impl WalletRepositoryTrait for WalletRepository {
-    async fn save_incoming(&self, info: SaveIncoming) -> sqlx::Result<Uuid> {
+    async fn save_incoming(&self, info: SaveIncoming) -> Result<Uuid> {
         let SaveIncoming {
             user_id,
             amount,
             invoice,
         } = info;
 
-        save_transaction(
+        Ok(save_transaction(
             &self.db,
             SaveTransaction {
                 user_id,
@@ -89,13 +90,13 @@ impl WalletRepositoryTrait for WalletRepository {
                 invoice,
             },
         )
-        .await
+        .await?)
     }
 
-    async fn save_outgoing(&self, info: SaveOutgoing) -> sqlx::Result<Uuid> {
+    async fn save_outgoing(&self, info: SaveOutgoing) -> Result<Uuid> {
         let SaveOutgoing { user_id, amount } = info;
 
-        save_transaction(
+        Ok(save_transaction(
             &self.db,
             SaveTransaction {
                 user_id,
@@ -104,19 +105,19 @@ impl WalletRepositoryTrait for WalletRepository {
                 invoice: None,
             },
         )
-        .await
+        .await?)
     }
 
-    async fn get_balance(&self, user_id: Uuid) -> sqlx::Result<i32> {
-        sqlx::query_scalar(
+    async fn get_balance(&self, user_id: Uuid) -> Result<i32> {
+        Ok(sqlx::query_scalar(
             r#" SELECT last_balance FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#
         )
         .bind(user_id)
         .fetch_one(&self.db)
-        .await
+        .await?)
     }
 
-    async fn get_invoice(&self, user_id: Uuid) -> sqlx::Result<String> {
+    async fn get_invoice(&self, user_id: Uuid) -> Result<String> {
         Ok(sqlx::query_as::<_, ReturnedInvoice>(
             r#" SELECT invoice FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1 "#
         )

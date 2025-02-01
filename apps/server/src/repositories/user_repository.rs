@@ -32,8 +32,8 @@ struct ReturnedLastBalance {
 }
 
 pub trait UserRepositoryTrait {
-    async fn find_by_email(&self, email: String) -> sqlx::Result<User>;
-    async fn find_by_id(&self, id: Uuid) -> sqlx::Result<User>;
+    async fn find_by_email(&self, email: String) -> Result<User>;
+    async fn find_by_id(&self, id: Uuid) -> Result<User>;
     async fn save(&self, user: SaveUser) -> Result<Uuid>;
 }
 
@@ -48,7 +48,7 @@ impl UserRepository {
 }
 
 impl UserRepositoryTrait for UserRepository {
-    async fn find_by_email(&self, email: String) -> sqlx::Result<User> {
+    async fn find_by_email(&self, email: String) -> Result<User> {
         let ReturnedUser {
             id,
             username,
@@ -77,7 +77,7 @@ impl UserRepositoryTrait for UserRepository {
         })
     }
 
-    async fn find_by_id(&self, id: Uuid) -> sqlx::Result<User> {
+    async fn find_by_id(&self, id: Uuid) -> Result<User> {
         let ReturnedUser {
             id,
             username,
@@ -118,13 +118,13 @@ impl UserRepositoryTrait for UserRepository {
         .map_err(|e| {
             if let sqlx::Error::Database(db_err) = &e {
                 if db_err.is_unique_violation() {
-                    return Error::BadRequest {
+                    return Error::Conflict {
                         message: String::from("Already exists an user with these credentials"),
                     };
                 }
             }
 
-            return Error::Anyhow(e.into());
+            return Error::InternalServerError;
         })?;
 
         sqlx::query(r#" INSERT INTO transactions (user_id, type, amount, last_balance) VALUES ( $1, 'input', 0, 0); "#)

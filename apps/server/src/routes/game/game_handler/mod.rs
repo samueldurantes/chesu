@@ -41,7 +41,9 @@ fn connect_channel(
     room_id: String,
 ) -> Option<(broadcast::Sender<String>, broadcast::Receiver<String>)> {
     let rooms_manager = crate::models::rooms_manager::RoomsManager::new();
-    let tx = rooms_manager.get_room_tx(uuid::Uuid::parse_str(&room_id).unwrap());
+    let tx = rooms_manager
+        .get_room_tx(uuid::Uuid::parse_str(&room_id).unwrap())
+        .ok();
 
     tx.map(|tx| (tx.clone(), tx.subscribe()))
 }

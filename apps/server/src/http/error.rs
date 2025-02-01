@@ -6,7 +6,6 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use schemars::JsonSchema;
 use serde_json::json;
-use sqlx::error::DatabaseError;
 use std::borrow::Cow;
 use std::collections::HashMap;
 
@@ -15,14 +14,14 @@ pub struct GenericError {
     pub message: String,
 }
 
-#[derive(thiserror::Error, Debug, aide::OperationIo)]
+#[derive(thiserror::Error, Debug, aide::OperationIo, Default)]
 pub enum Error {
     /// Return `400 Bad Request`
-    #[error("bad request")]
+    #[error("{message}")]
     BadRequest { message: String },
 
     /// Return `401 Unauthorized`
-    #[error("authentication required")]
+    #[error("authentication required: {message}")]
     Unauthorized { message: String },
 
     /// Return `403 Forbidden`
@@ -30,11 +29,11 @@ pub enum Error {
     Forbidden,
 
     /// Return `404 Not Found`
-    #[error("request path not found")]
+    #[error("{message}")]
     NotFound { message: String },
 
     /// Return `409 Conflict`
-    #[error("request conflicts with the current state")]
+    #[error("request conflicts with the current state: {message}")]
     Conflict { message: String },
 
     /// Return `422 Unprocessable Entity`
@@ -43,11 +42,10 @@ pub enum Error {
         errors: HashMap<Cow<'static, str>, Vec<Cow<'static, str>>>,
     },
 
-    #[error("an error occurred with the database")]
-    Sqlx(#[from] sqlx::Error),
-
+    /// Return `500 Internal Server Error`
+    #[default]
     #[error("an internal server error occurred")]
-    Anyhow(#[from] anyhow::Error),
+    InternalServerError,
 }
 
 #[macro_export]
@@ -60,9 +58,9 @@ macro_rules! bad_req {
 }
 
 #[macro_export]
-macro_rules! status_500 {
+macro_rules! internal_error {
     () => {
-        |_| Error::Anyhow(anyhow!(""))
+        Error::InternalServerError
     };
 }
 
@@ -92,7 +90,7 @@ impl Error {
             Self::NotFound { .. } => StatusCode::NOT_FOUND,
             Self::Conflict { .. } => StatusCode::CONFLICT,
             Self::UnprocessableEntity { .. } => StatusCode::UNPROCESSABLE_ENTITY,
-            Self::Sqlx(_) | Self::Anyhow(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -136,12 +134,8 @@ impl IntoResponse for Error {
                     .into_response();
             }
 
-            Self::Sqlx(e) => {
-                tracing::error!("SQLx error: {:?}", e);
-            }
-
-            Self::Anyhow(e) => {
-                tracing::error!("Generic error: {:?}", e);
+            Self::InternalServerError => {
+                tracing::error!("Internal Server Error");
             }
 
             // Other errors get mapped normally.
@@ -152,28 +146,27 @@ impl IntoResponse for Error {
     }
 }
 
-pub trait ResultExt<T> {
-    fn on_constraint(
-        self,
-        name: &str,
-        f: impl FnOnce(Box<dyn DatabaseError>) -> Error,
-    ) -> Result<T, Error>;
+impl From<Error> for String {
+    fn from(error: Error) -> Self {
+        error.to_string()
+    }
 }
 
-impl<T, E> ResultExt<T> for Result<T, E>
-where
-    E: Into<Error>,
-{
-    fn on_constraint(
-        self,
-        name: &str,
-        map_err: impl FnOnce(Box<dyn DatabaseError>) -> Error,
-    ) -> Result<T, Error> {
-        self.map_err(|e| match e.into() {
-            Error::Sqlx(sqlx::Error::Database(dbe)) if dbe.constraint() == Some(name) => {
-                map_err(dbe)
-            }
-            e => e,
-        })
+impl From<anyhow::Error> for Error {
+    fn from(error: anyhow::Error) -> Self {
+        match error {
+            _ => Self::InternalServerError,
+        }
+    }
+}
+
+impl From<sqlx::Error> for Error {
+    fn from(error: sqlx::Error) -> Self {
+        match error {
+            sqlx::Error::RowNotFound => Self::NotFound {
+                message: String::from("Item not found!"),
+            },
+            _ => Self::InternalServerError,
+        }
     }
 }

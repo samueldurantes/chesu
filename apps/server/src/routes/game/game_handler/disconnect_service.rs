@@ -19,10 +19,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> DisconnectService<R, M> {
     }
 
     pub async fn execute(&self, info: DisconnectInfo) -> Result<(), String> {
-        let room = self
-            .rooms_manager
-            .get_room(info.game_id)
-            .ok_or(String::from("Room not found!"))?;
+        let room = self.rooms_manager.get_room(info.game_id)?;
 
         if !room.is_playing(info.player_id) {
             return Ok(());
@@ -34,11 +31,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> DisconnectService<R, M> {
             return Ok(());
         }
 
-        let game = self
-            .game_repository
-            .get_game(info.game_id)
-            .await
-            .map_err(|_| String::from("Game not found!"))?;
+        let game = self.game_repository.get_game(info.game_id).await?;
 
         let new_game_state = match (game.state, info.player_id) {
             (GameState::Waiting, _) => Some(GameState::Draw),
@@ -54,8 +47,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> DisconnectService<R, M> {
         if let Some(new_game_state) = new_game_state {
             self.game_repository
                 .update_state(game.id, new_game_state.clone())
-                .await
-                .map_err(|m| m.to_string())?;
+                .await?;
 
             room.relay_event(Event::GameChangeState(new_game_state));
             self.rooms_manager.remove_room(info.game_id);

@@ -1,4 +1,5 @@
 use super::*;
+use crate::http::Error;
 use crate::models::{
     event::{DisconnectInfo, MoveInfo},
     game::{Game, GameState},
@@ -104,7 +105,11 @@ async fn test_game_not_found() {
     mock_game_repository
         .expect_get_game()
         .once()
-        .returning(|_| Err(sqlx::Error::RowNotFound));
+        .returning(|_| {
+            Err(Error::NotFound {
+                message: String::from("Item not found!"),
+            })
+        });
 
     let input = MoveInfo {
         player_id: uuid::uuid!("06d6a0d9-97a8-48d0-9f81-0172c5a81b8a"),
@@ -117,7 +122,7 @@ async fn test_game_not_found() {
     let result = service.execute(input).await;
 
     assert!(result.is_err());
-    assert_eq!(result, Err(String::from("Game not found!")));
+    assert_eq!(result, Err(String::from("Item not found!")));
 }
 
 #[tokio::test]
@@ -126,7 +131,7 @@ async fn test_player_disconnection_from_request() {
     let mut mock_rooms_manager = MockRoomsManagerTrait::new();
 
     mock_rooms_manager.expect_get_room().once().returning(|_| {
-        Some(Room {
+        Ok(Room {
             request_key: String::from("w-10-0-0"),
             white_player: Some(uuid::uuid!("73c1fad5-db48-4dce-8e03-6be3b43b0e7b")),
             black_player: None,
@@ -173,7 +178,7 @@ async fn test_player_disconnection_from_game() {
         .once()
         .withf(|id| id == &uuid::uuid!("73c1fad5-db48-4dce-8e03-6be3b43b0e7b"))
         .returning(|_| {
-            Some(Room {
+            Ok(Room {
                 request_key: String::from("w-10-0-0"),
                 white_player: Some(uuid::uuid!("6a2b4680-e96d-4e33-923f-3979d09d8ade")),
                 black_player: Some(Uuid::new_v4()),
@@ -231,7 +236,7 @@ async fn test_viewer_disconnection() {
         .once()
         .withf(|id| id == &uuid::uuid!("73c1fad5-db48-4dce-8e03-6be3b43b0e7b"))
         .returning(|_| {
-            Some(Room {
+            Ok(Room {
                 request_key: String::from("w-10-0-0"),
                 white_player: Some(Uuid::new_v4()),
                 black_player: Some(Uuid::new_v4()),

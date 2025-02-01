@@ -1,6 +1,6 @@
 use super::event::Event;
 use super::game::PlayerColor;
-use crate::{http::Result, states::rooms_manager};
+use crate::{http::Result, states::rooms_manager, Error};
 use mockall::automock;
 use std::{
     collections::HashMap,
@@ -44,9 +44,11 @@ impl Room {
         &mut self,
         player_id: Uuid,
         color_preference: Option<PlayerColor>,
-    ) -> Result<PlayerColor, ()> {
+    ) -> Result<PlayerColor> {
         if self.is_full() {
-            return Err(());
+            return Err(Error::Conflict {
+                message: String::from("Room is full!"),
+            });
         }
 
         let player_color = match color_preference {
@@ -58,7 +60,9 @@ impl Room {
                 self.black_player = Some(player_id);
                 Ok(PlayerColor::Black)
             }
-            _ => Err(()),
+            _ => Err(Error::Conflict {
+                message: String::from("A player already occupied you side!"),
+            }),
         }?;
 
         if self.is_full() {
@@ -75,16 +79,16 @@ impl Room {
 
 #[automock]
 pub trait RoomsManagerTrait: Send + Sync {
-    fn get_room_tx(&self, room_id: Uuid) -> Option<broadcast::Sender<String>>;
+    fn get_room_tx(&self, room_id: Uuid) -> Result<broadcast::Sender<String>>;
 
-    fn get_room(&self, room_id: Uuid) -> Option<Room>;
+    fn get_room(&self, room_id: Uuid) -> Result<Room>;
     fn create_room(&self, room_id: Uuid, request_key: String);
     fn add_player(
         &self,
         room_id: Uuid,
         player_id: Uuid,
         color_preference: Option<PlayerColor>,
-    ) -> Result<PlayerColor, ()>;
+    ) -> Result<PlayerColor>;
     fn pair_new_player(&self, room_key: String) -> PairedGame;
     fn remove_request(&self, request_key: String);
     fn remove_room(&self, room_id: Uuid);
@@ -118,20 +122,29 @@ impl RoomsManager {
 }
 
 impl RoomsManagerTrait for RoomsManager {
-    fn get_room_tx(&self, room_id: Uuid) -> Option<broadcast::Sender<String>> {
-        self.game_rooms
+    fn get_room_tx(&self, room_id: Uuid) -> Result<broadcast::Sender<String>> {
+        Ok(self
+            .game_rooms
             .lock()
             .unwrap()
             .get(&room_id)
-            .map(|room| room.tx.clone())
+            .ok_or(Error::NotFound {
+                message: String::from("Room not found!"),
+            })?
+            .tx
+            .clone())
     }
 
-    fn get_room(&self, room_id: Uuid) -> Option<Room> {
-        self.game_rooms
+    fn get_room(&self, room_id: Uuid) -> Result<Room> {
+        Ok(self
+            .game_rooms
             .lock()
             .unwrap()
             .get_mut(&room_id)
-            .map(|room| room.clone())
+            .ok_or(Error::NotFound {
+                message: String::from("Room not found!"),
+            })?
+            .clone())
     }
 
     fn create_room(&self, room_id: Uuid, request_key: String) {
@@ -146,13 +159,15 @@ impl RoomsManagerTrait for RoomsManager {
         room_id: Uuid,
         player_id: Uuid,
         color_preference: Option<PlayerColor>,
-    ) -> Result<PlayerColor, ()> {
+    ) -> Result<PlayerColor> {
         self.game_rooms
             .lock()
             .unwrap()
             .get_mut(&room_id)
-            .map(|room| room.add_player(player_id, color_preference))
-            .unwrap()
+            .ok_or(Error::NotFound {
+                message: String::from("Room not found!"),
+            })?
+            .add_player(player_id, color_preference)
     }
 
     fn pair_new_player(&self, key: String) -> PairedGame {
