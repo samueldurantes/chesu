@@ -52,6 +52,8 @@ export const Board = ({ san = [], ...props }: Props) => {
       showPromotionDialog={true}
       position={fen}
       onPieceDrop={onDrop}
+      areArrowsAllowed={true}
+      arePremovesAllowed={true}
     />
   );
 };

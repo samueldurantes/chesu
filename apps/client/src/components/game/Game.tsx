@@ -68,7 +68,7 @@ const Game = () => {
           setSan(prevSan => [...prevSan, receiverData.data.move_played]);
           break;
         case "GameChangeState":
-          console.log(receiverData?.data)
+          alert(receiverData?.data)
           break;
         default: return;
       }
