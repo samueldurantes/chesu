@@ -67,11 +67,11 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
     }
 
     pub async fn execute(&self, player_id: Uuid, game_request: GameRequest) -> Result<Uuid> {
-        let paired_game = self.rooms_manager.pair_new_player(game_request.key.clone());
+        let paired_game = self.rooms_manager.pair_new_player(&game_request.key);
 
         let paired_game_id = match paired_game {
             PairedGame::NewGame(game_id) => {
-                self.rooms_manager.create_room(game_id, game_request.key);
+                self.rooms_manager.create_room(game_id, &game_request.key);
                 self.rooms_manager
                     .add_player(game_id, player_id, game_request.player_color)?;
 

@@ -26,7 +26,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> DisconnectService<R, M> {
         }
 
         if !room.is_full() {
-            self.rooms_manager.remove_request(room.request_key);
+            self.rooms_manager.remove_request(&room.request_key);
             self.rooms_manager.remove_room(info.game_id);
             return Ok(());
         }

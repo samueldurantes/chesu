@@ -82,15 +82,15 @@ pub trait RoomsManagerTrait: Send + Sync {
     fn get_room_tx(&self, room_id: Uuid) -> Result<broadcast::Sender<String>>;
 
     fn get_room(&self, room_id: Uuid) -> Result<Room>;
-    fn create_room(&self, room_id: Uuid, request_key: String);
+    fn create_room(&self, room_id: Uuid, request_key: &str);
     fn add_player(
         &self,
         room_id: Uuid,
         player_id: Uuid,
         color_preference: Option<PlayerColor>,
     ) -> Result<PlayerColor>;
-    fn pair_new_player(&self, room_key: String) -> PairedGame;
-    fn remove_request(&self, request_key: String);
+    fn pair_new_player(&self, room_key: &str) -> PairedGame;
+    fn remove_request(&self, request_key: &str);
     fn remove_room(&self, room_id: Uuid);
 }
 
@@ -110,13 +110,6 @@ impl RoomsManager {
         Self {
             game_rooms,
             requests,
-        }
-    }
-
-    pub fn _new_empty() -> Self {
-        Self {
-            game_rooms: Arc::new(Mutex::new(HashMap::new())),
-            requests: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
@@ -147,11 +140,11 @@ impl RoomsManagerTrait for RoomsManager {
             .clone())
     }
 
-    fn create_room(&self, room_id: Uuid, request_key: String) {
+    fn create_room(&self, room_id: Uuid, request_key: &str) {
         self.game_rooms
             .lock()
             .unwrap()
-            .insert(room_id, Room::new(request_key));
+            .insert(room_id, Room::new(request_key.to_string()));
     }
 
     fn add_player(
@@ -170,22 +163,22 @@ impl RoomsManagerTrait for RoomsManager {
             .add_player(player_id, color_preference)
     }
 
-    fn pair_new_player(&self, key: String) -> PairedGame {
-        let mut waiting_rooms = self.requests.lock().unwrap();
+    fn pair_new_player(&self, key: &str) -> PairedGame {
+        let mut requests = self.requests.lock().unwrap();
 
-        match waiting_rooms.remove(&key) {
+        match requests.remove(key) {
             Some(room_id) => PairedGame::ExistingGame(room_id),
             None => {
                 let room_id = Uuid::new_v4();
-                waiting_rooms.insert(key, room_id);
+                requests.insert(key.to_string(), room_id);
 
                 PairedGame::NewGame(room_id)
             }
         }
     }
 
-    fn remove_request(&self, request_key: String) {
-        self.requests.lock().unwrap().remove(&request_key);
+    fn remove_request(&self, request_key: &str) {
+        self.requests.lock().unwrap().remove(request_key);
     }
 
     fn remove_room(&self, room_id: Uuid) {
@@ -197,16 +190,25 @@ impl RoomsManagerTrait for RoomsManager {
 mod tests {
     use super::*;
 
+    impl RoomsManager {
+        pub fn new_empty() -> Self {
+            Self {
+                game_rooms: Arc::new(Mutex::new(HashMap::new())),
+                requests: Arc::new(Mutex::new(HashMap::new())),
+            }
+        }
+    }
+
     #[test]
     fn test_add_player_rooms_manager() {
-        let rooms_manager = RoomsManager::_new_empty();
+        let rooms_manager = RoomsManager::new_empty();
 
         let room_id = Uuid::new_v4();
 
         let player1 = Uuid::new_v4();
         let player2 = Uuid::new_v4();
 
-        rooms_manager.create_room(room_id, String::from("123"));
+        rooms_manager.create_room(room_id, "123");
 
         let player1_color = rooms_manager.add_player(room_id, player1, None);
 
@@ -319,5 +321,51 @@ mod tests {
         assert!(player3_color.is_err());
         assert!(room.white_player.is_some());
         assert!(room.black_player.is_some());
+    }
+
+    #[test]
+    fn test_pairing_new_room() {
+        let rooms_manager = RoomsManager::new_empty();
+        let result = rooms_manager.pair_new_player("w-10-0-0");
+
+        if let PairedGame::ExistingGame(_) = result {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn test_pairing_2_not_equal_rooms() {
+        let rooms_manager = RoomsManager::new_empty();
+        rooms_manager.pair_new_player("w-10-0-1");
+        let result = rooms_manager.pair_new_player("w-10-0-0");
+
+        if let PairedGame::ExistingGame(_) = result {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn test_pairing_existing_room() {
+        let rooms_manager = RoomsManager::new_empty();
+        let player = Uuid::new_v4();
+
+        if let PairedGame::NewGame(room_id) = rooms_manager.pair_new_player("w-10-0-0") {
+            rooms_manager.create_room(room_id, "w-10-0-0");
+            rooms_manager
+                .add_player(room_id, player, Some(PlayerColor::Black))
+                .unwrap();
+        }
+
+        let result = rooms_manager.pair_new_player("w-10-0-0");
+
+        match result {
+            PairedGame::ExistingGame(room_id) => {
+                let room = rooms_manager.get_room(room_id).unwrap();
+
+                assert_eq!(room.request_key, "w-10-0-0");
+                assert_eq!(room.black_player, Some(player));
+            }
+            _ => panic!(),
+        }
     }
 }
