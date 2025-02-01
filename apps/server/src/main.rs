@@ -16,11 +16,10 @@ async fn main() -> anyhow::Result<()> {
 
     let listener =
         tokio::net::TcpListener::bind(&std::env::var("SERVER_URL").expect("SERVER_URL is void"))
-            .await
-            .unwrap();
+            .await?;
 
-    tracing::debug!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, make_app()).await.unwrap();
+    tracing::debug!("listening on {}", listener.local_addr()?);
+    axum::serve(listener, make_app()).await?;
 
     Ok(())
 }
