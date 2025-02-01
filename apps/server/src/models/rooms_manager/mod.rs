@@ -1,5 +1,5 @@
 use super::event::Event;
-use super::game::{Player, PlayerColor};
+use super::game::PlayerColor;
 use crate::{http::Result, states::rooms_manager};
 use mockall::automock;
 use std::{
@@ -17,8 +17,8 @@ pub enum PairedGame {
 #[derive(Debug, Clone)]
 pub struct Room {
     pub request_key: String,
-    pub white_player: Option<Player>,
-    pub black_player: Option<Player>,
+    pub white_player: Option<Uuid>,
+    pub black_player: Option<Uuid>,
     pub tx: broadcast::Sender<String>,
 }
 
@@ -42,7 +42,7 @@ impl Room {
 
     pub fn add_player(
         &mut self,
-        player: Player,
+        player_id: Uuid,
         color_preference: Option<PlayerColor>,
     ) -> Result<PlayerColor, ()> {
         if self.is_full() {
@@ -51,11 +51,11 @@ impl Room {
 
         let player_color = match color_preference {
             Some(PlayerColor::White) | None if self.white_player.is_none() => {
-                self.white_player = Some(player);
+                self.white_player = Some(player_id);
                 Ok(PlayerColor::White)
             }
             Some(PlayerColor::Black) | None if self.black_player.is_none() => {
-                self.black_player = Some(player);
+                self.black_player = Some(player_id);
                 Ok(PlayerColor::Black)
             }
             _ => Err(()),
@@ -69,8 +69,7 @@ impl Room {
     }
 
     pub fn is_playing(&self, player_id: Uuid) -> bool {
-        Some(player_id) == self.white_player.as_ref().map(|p| p.id)
-            || Some(player_id) == self.black_player.as_ref().map(|p| p.id)
+        Some(player_id) == self.white_player || Some(player_id) == self.black_player
     }
 }
 
@@ -83,7 +82,7 @@ pub trait RoomsManagerTrait: Send + Sync {
     fn add_player(
         &self,
         room_id: Uuid,
-        player: Player,
+        player_id: Uuid,
         color_preference: Option<PlayerColor>,
     ) -> Result<PlayerColor, ()>;
     fn pair_new_player(&self, room_key: String) -> PairedGame;
@@ -145,14 +144,14 @@ impl RoomsManagerTrait for RoomsManager {
     fn add_player(
         &self,
         room_id: Uuid,
-        player: Player,
+        player_id: Uuid,
         color_preference: Option<PlayerColor>,
     ) -> Result<PlayerColor, ()> {
         self.game_rooms
             .lock()
             .unwrap()
             .get_mut(&room_id)
-            .map(|room| room.add_player(player, color_preference))
+            .map(|room| room.add_player(player_id, color_preference))
             .unwrap()
     }
 

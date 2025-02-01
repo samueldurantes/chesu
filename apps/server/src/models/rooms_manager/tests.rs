@@ -6,11 +6,8 @@ fn test_add_player_rooms_manager() {
 
     let room_id = Uuid::new_v4();
 
-    let player1 = Player::new();
-    let player2 = Player::new();
-
-    let p1_id = player1.id.clone();
-    let p2_id = player2.id.clone();
+    let player1 = Uuid::new_v4();
+    let player2 = Uuid::new_v4();
 
     rooms_manager.create_room(room_id, String::from("123"));
 
@@ -21,7 +18,7 @@ fn test_add_player_rooms_manager() {
     assert!(room.white_player.is_some());
     assert!(room.black_player.is_none());
     assert!(player1_color == Ok(PlayerColor::White));
-    assert_eq!(p1_id, room.white_player.clone().unwrap().id);
+    assert_eq!(Some(player1), room.white_player);
 
     let player2_color = rooms_manager.add_player(room_id, player2, None);
 
@@ -30,40 +27,37 @@ fn test_add_player_rooms_manager() {
     assert!(room.white_player.is_some());
     assert!(room.black_player.is_some());
     assert!(player2_color == Ok(PlayerColor::Black));
-    assert_eq!(p2_id, room.black_player.unwrap().id);
+    assert_eq!(Some(player2), room.black_player);
 }
 
 #[test]
 fn test_add_player_to_room() {
     let mut room = Room::new(String::from("123"));
 
-    let player1 = Player::new();
-    let player2 = Player::new();
-
-    let p1_id = player1.id.clone();
-    let p2_id = player2.id.clone();
+    let player1 = Uuid::new_v4();
+    let player2 = Uuid::new_v4();
 
     let player1_color = room.add_player(player1, None);
 
     assert!(room.white_player.is_some());
     assert!(room.black_player.is_none());
     assert!(player1_color == Ok(PlayerColor::White));
-    assert_eq!(p1_id, room.white_player.clone().unwrap().id);
+    assert_eq!(Some(player1), room.white_player);
 
     let player2_color = room.add_player(player2, None);
 
     assert!(room.white_player.is_some());
     assert!(room.black_player.is_some());
     assert!(player2_color == Ok(PlayerColor::Black));
-    assert_eq!(p2_id, room.black_player.unwrap().id);
+    assert_eq!(Some(player2), room.black_player);
 }
 
 #[test]
 fn test_add_2_players_to_room() {
     let mut room = Room::new(String::from(""));
 
-    let player1 = Player::new();
-    let player2 = Player::new();
+    let player1 = Uuid::new_v4();
+    let player2 = Uuid::new_v4();
 
     let player1_color = room.add_player(player1, Some(PlayerColor::Black));
 
@@ -84,8 +78,8 @@ fn test_add_2_players_to_room() {
 fn test_two_players_picking_white() {
     let mut room = Room::new(String::from(""));
 
-    let player1 = Player::new();
-    let player2 = Player::new();
+    let player1 = Uuid::new_v4();
+    let player2 = Uuid::new_v4();
 
     let player1_color = room.add_player(player1, Some(PlayerColor::White));
 
@@ -105,9 +99,9 @@ fn test_two_players_picking_white() {
 fn test_add_three_players() {
     let mut room = Room::new(String::from(""));
 
-    let player1 = Player::new();
-    let player2 = Player::new();
-    let player3 = Player::new();
+    let player1 = Uuid::new_v4();
+    let player2 = Uuid::new_v4();
+    let player3 = Uuid::new_v4();
 
     let player1_color = room.add_player(player1, Some(PlayerColor::White));
 

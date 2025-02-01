@@ -46,13 +46,13 @@ pub async fn route(Path(GameId { id: game_id }): Path<GameId>) -> Result<Json<Ga
     if let Some(room) = room {
         if !room.is_full() {
             let (white_player, black_player) = match (room.white_player, room.black_player) {
-                (Some(player), None) => Ok((
-                    game_repository.get_player(player.id).await?,
+                (Some(player_id), None) => Ok((
+                    game_repository.get_player(player_id).await?,
                     get_mocked_player(),
                 )),
-                (None, Some(player)) => Ok((
+                (None, Some(player_id)) => Ok((
                     get_mocked_player(),
-                    game_repository.get_player(player.id).await?,
+                    game_repository.get_player(player_id).await?,
                 )),
                 _ => Err(Error::Anyhow(anyhow!(""))),
             }?;

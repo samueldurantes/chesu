@@ -70,13 +70,11 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
     pub async fn execute(&self, player_id: Uuid, game_request: GameRequest) -> Result<Uuid> {
         let paired_game = self.rooms_manager.pair_new_player(game_request.key.clone());
 
-        let player = self.game_repository.get_player(player_id).await?;
-
         let paired_game_id = match paired_game {
             PairedGame::NewGame(game_id) => {
                 self.rooms_manager.create_room(game_id, game_request.key);
                 self.rooms_manager
-                    .add_player(game_id, player, game_request.player_color)
+                    .add_player(game_id, player_id, game_request.player_color)
                     .map_err(status_500!())?;
 
                 game_id
@@ -84,21 +82,15 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
 
             PairedGame::ExistingGame(game_id) => {
                 self.rooms_manager
-                    .add_player(game_id, player, None)
+                    .add_player(game_id, player_id, None)
                     .map_err(status_500!())?;
 
                 let room = self.rooms_manager.get_room(game_id).unwrap();
 
                 let game = Game {
                     id: game_id,
-                    white_player: room
-                        .white_player
-                        .map(|p| p.id)
-                        .ok_or(Error::Anyhow(anyhow!("")))?,
-                    black_player: room
-                        .black_player
-                        .map(|p| p.id)
-                        .ok_or(Error::Anyhow(anyhow!("")))?,
+                    white_player: room.white_player.ok_or(Error::Anyhow(anyhow!("")))?,
+                    black_player: room.black_player.ok_or(Error::Anyhow(anyhow!("")))?,
                     bet_value: game_request.bet_value,
                     ..Default::default()
                 };

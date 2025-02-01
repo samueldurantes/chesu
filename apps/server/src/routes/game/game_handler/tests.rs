@@ -1,7 +1,7 @@
 use super::*;
 use crate::models::{
     event::{DisconnectInfo, MoveInfo},
-    game::{Game, GameState, Player},
+    game::{Game, GameState},
     rooms_manager::{MockRoomsManagerTrait, Room},
 };
 use crate::repositories::game_repository::MockGameRepositoryTrait;
@@ -128,10 +128,7 @@ async fn test_player_disconnection_from_request() {
     mock_rooms_manager.expect_get_room().once().returning(|_| {
         Some(Room {
             request_key: String::from("w-10-0-0"),
-            white_player: Some(Player {
-                id: uuid::uuid!("73c1fad5-db48-4dce-8e03-6be3b43b0e7b"),
-                ..Default::default()
-            }),
+            white_player: Some(uuid::uuid!("73c1fad5-db48-4dce-8e03-6be3b43b0e7b")),
             black_player: None,
             tx: broadcast::channel(100).0,
         })
@@ -178,14 +175,8 @@ async fn test_player_disconnection_from_game() {
         .returning(|_| {
             Some(Room {
                 request_key: String::from("w-10-0-0"),
-                white_player: Some(Player {
-                    id: uuid::uuid!("6a2b4680-e96d-4e33-923f-3979d09d8ade"),
-                    ..Default::default()
-                }),
-                black_player: Some(Player {
-                    id: Uuid::new_v4(),
-                    ..Default::default()
-                }),
+                white_player: Some(uuid::uuid!("6a2b4680-e96d-4e33-923f-3979d09d8ade")),
+                black_player: Some(Uuid::new_v4()),
                 tx: broadcast::channel(100).0,
             })
         });
@@ -242,14 +233,8 @@ async fn test_viewer_disconnection() {
         .returning(|_| {
             Some(Room {
                 request_key: String::from("w-10-0-0"),
-                white_player: Some(Player {
-                    id: Uuid::new_v4(),
-                    ..Default::default()
-                }),
-                black_player: Some(Player {
-                    id: Uuid::new_v4(),
-                    ..Default::default()
-                }),
+                white_player: Some(Uuid::new_v4()),
+                black_player: Some(Uuid::new_v4()),
                 tx: broadcast::channel(100).0,
             })
         });
