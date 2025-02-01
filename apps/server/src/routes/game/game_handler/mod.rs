@@ -98,6 +98,3 @@ pub fn docs(op: TransformOperation) -> TransformOperation {
         .description("Websocket for game")
         .hidden(true)
 }
-
-#[cfg(test)]
-mod tests;

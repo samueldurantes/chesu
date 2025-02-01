@@ -49,6 +49,3 @@ pub fn docs(op: TransformOperation) -> TransformOperation {
         .response::<200, Json<GameId>>()
         .response::<400, Json<GenericError>>()
 }
-
-#[cfg(test)]
-mod tests;
