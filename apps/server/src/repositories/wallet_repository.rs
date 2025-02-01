@@ -1,5 +1,6 @@
 use crate::http::Result;
 use crate::states::db;
+use mockall::automock;
 use sqlx::{prelude::FromRow, Pool, Postgres};
 use uuid::Uuid;
 
@@ -31,6 +32,7 @@ struct ReturnedInvoice {
     invoice: Option<String>,
 }
 
+#[automock]
 pub trait WalletRepositoryTrait {
     async fn save_incoming(&self, info: SaveIncoming) -> Result<Uuid>;
     async fn save_outgoing(&self, info: SaveOutgoing) -> Result<Uuid>;

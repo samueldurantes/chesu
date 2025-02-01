@@ -30,7 +30,7 @@ impl<R: UserRepositoryTrait> LoginUserService<R> {
                 message: "Email and/or password incorrect".to_string(),
             })?;
 
-        verify_password(password, user.hashed_password.clone()).await?;
+        verify_password(password, &user.hashed_password).await?;
 
         let token = AuthUser { user_id: user.id }.to_jwt();
 
@@ -38,7 +38,9 @@ impl<R: UserRepositoryTrait> LoginUserService<R> {
     }
 }
 
-async fn verify_password(password: String, password_hash: String) -> Result<()> {
+async fn verify_password(password: String, password_hash: &String) -> Result<()> {
+    let password_hash = password_hash.to_string();
+
     tokio::task::spawn_blocking(move || -> Result<()> {
         let hash = PasswordHash::new(&password_hash)
             .map_err(|e| anyhow::anyhow!("Failed to parse password hash: {}", e))?;

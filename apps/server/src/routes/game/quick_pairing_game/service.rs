@@ -1,6 +1,7 @@
 use crate::http::{Error, Result};
 use crate::internal_error;
-use crate::models::game::{Game, PlayerColor};
+use crate::models::game::Game;
+use crate::models::game_request::GameRequest;
 use crate::models::rooms_manager::{PairedGame, RoomsManagerTrait};
 use crate::repositories::game_repository::GameRepositoryTrait;
 use uuid::Uuid;
@@ -8,54 +9,6 @@ use uuid::Uuid;
 pub struct PairingGameService<R: GameRepositoryTrait, M: RoomsManagerTrait> {
     game_repository: R,
     rooms_manager: M,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct GameRequest {
-    pub key: String,
-    pub player_color: Option<PlayerColor>,
-    pub _total_time: u8,
-    pub _turn_time: u8,
-    pub bet_value: i32,
-}
-
-impl GameRequest {
-    pub fn from_str(key: &str) -> Result<Self, ()> {
-        let mut result = key.split("-");
-        let player_color = result
-            .next()
-            .map(|c| match c {
-                "w" => Ok(Some(PlayerColor::White)),
-                "b" => Ok(Some(PlayerColor::Black)),
-                "n" => Ok(None),
-                _ => Err(()),
-            })
-            .unwrap_or(Err(()))?;
-        let _total_time = result
-            .next()
-            .map(|r| r.parse::<u8>().map_err(|_| ()))
-            .unwrap_or(Err(()))?;
-        let _turn_time = result
-            .next()
-            .map(|r| r.parse::<u8>().map_err(|_| ()))
-            .unwrap_or(Err(()))?;
-        let bet_value = result
-            .next()
-            .map(|r| r.parse::<i32>().map_err(|_| ()))
-            .unwrap_or(Err(()))?;
-
-        if _total_time <= 0 || bet_value < 0 {
-            return Err(());
-        }
-
-        Ok(Self {
-            key: key.to_string(),
-            _total_time,
-            _turn_time,
-            bet_value,
-            player_color,
-        })
-    }
 }
 
 impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
@@ -104,6 +57,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::game_request::GameRequest;
     use crate::models::rooms_manager::PairedGame;
     use crate::{
         models::{game::Player, game::PlayerColor, rooms_manager::MockRoomsManagerTrait},
@@ -162,57 +116,5 @@ mod tests {
             result.unwrap(),
             uuid!("06d6a0d9-97a8-48d0-9f81-0172c5a81b8a")
         );
-    }
-
-    #[test]
-    fn test_request_key_parsing_1() {
-        let input = "";
-        let result = GameRequest::from_str(input);
-
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_request_key_parsing_2() {
-        let input = "w-10-0-0";
-        let result = GameRequest::from_str(input);
-
-        assert!(result.is_ok());
-        assert_eq!(
-            result,
-            Ok(GameRequest {
-                key: input.to_string(),
-                player_color: Some(PlayerColor::White),
-                _total_time: 10,
-                _turn_time: 0,
-                bet_value: 0,
-            })
-        )
-    }
-
-    #[test]
-    fn test_request_key_parsing_3() {
-        let input = "j-10-0-0";
-        let result = GameRequest::from_str(input);
-
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_request_key_parsing_4() {
-        let input = "b-30-10-10000";
-        let result = GameRequest::from_str(input);
-
-        assert!(result.is_ok());
-        assert_eq!(
-            result,
-            Ok(GameRequest {
-                key: input.to_string(),
-                player_color: Some(PlayerColor::Black),
-                _total_time: 30,
-                _turn_time: 10,
-                bet_value: 10000,
-            })
-        )
     }
 }

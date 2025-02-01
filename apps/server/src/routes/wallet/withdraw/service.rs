@@ -55,3 +55,57 @@ impl<R: WalletRepositoryTrait, C: HttpClient> WithdrawService<R, C> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::repositories::wallet_repository::MockWalletRepositoryTrait;
+    use reqwest::Client;
+    use uuid::uuid;
+
+    #[tokio::test]
+    async fn test_withdraw_service_1() {
+        let mut mock_wallet_repository = MockWalletRepositoryTrait::new();
+
+        mock_wallet_repository
+            .expect_get_balance()
+            .once()
+            .withf(|id| id == &uuid!("55bc0856-6b5a-4e5a-b294-bf82921a996a"))
+            .returning(|_| Ok(1000));
+
+        let input = WithdrawInput {
+            user_id: uuid!("55bc0856-6b5a-4e5a-b294-bf82921a996a"),
+            invoice: String::new(),
+            amount: 2000,
+        };
+
+        let service = WithdrawService::new(mock_wallet_repository, Client::new());
+
+        let result = service.execute(input).await.ok();
+
+        assert!(result.is_none())
+    }
+
+    #[tokio::test]
+    async fn test_withdraw_service_2() {
+        let mut mock_wallet_repository = MockWalletRepositoryTrait::new();
+
+        mock_wallet_repository
+            .expect_get_balance()
+            .once()
+            .withf(|id| id == &uuid!("55bc0856-6b5a-4e5a-b294-bf82921a996a"))
+            .returning(|_| Ok(1000));
+
+        let input = WithdrawInput {
+            user_id: uuid!("55bc0856-6b5a-4e5a-b294-bf82921a996a"),
+            invoice: String::new(),
+            amount: -2000,
+        };
+
+        let service = WithdrawService::new(mock_wallet_repository, Client::new());
+
+        let result = service.execute(input).await.ok();
+
+        assert!(result.is_none())
+    }
+}
