@@ -1,6 +1,8 @@
+use uuid::Uuid;
+
 use crate::models::{
     event::{DisconnectInfo, Event},
-    game::GameState,
+    game::{Game, GameState},
 };
 use crate::repositories::game_repository::GameRepositoryTrait;
 use crate::{http::Result, models::rooms_manager::RoomsManagerTrait};
@@ -8,6 +10,19 @@ use crate::{http::Result, models::rooms_manager::RoomsManagerTrait};
 pub struct DisconnectService<R: GameRepositoryTrait, M: RoomsManagerTrait> {
     game_repository: R,
     rooms_manager: M,
+}
+
+fn check_new_game_state(game: &Game, player_disconnect: Uuid) -> Option<GameState> {
+    match (game.state, player_disconnect) {
+        (GameState::Waiting, _) => Some(GameState::Draw),
+        (GameState::Running, player_id) if player_id == game.white_player => {
+            Some(GameState::BlackWin)
+        }
+        (GameState::Running, player_id) if player_id == game.black_player => {
+            Some(GameState::WhiteWin)
+        }
+        _ => None,
+    }
 }
 
 impl<R: GameRepositoryTrait, M: RoomsManagerTrait> DisconnectService<R, M> {
@@ -25,32 +40,20 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> DisconnectService<R, M> {
             return Ok(());
         }
 
+        self.rooms_manager.remove_room(info.game_id);
+
         if !room.is_full() {
-            self.rooms_manager.remove_request(&room.request_key);
-            self.rooms_manager.remove_room(info.game_id);
-            return Ok(());
+            return Ok(self.rooms_manager.remove_request(&room.request_key));
         }
 
         let game = self.game_repository.get_game(info.game_id).await?;
 
-        let new_game_state = match (game.state, info.player_id) {
-            (GameState::Waiting, _) => Some(GameState::Draw),
-            (GameState::Running, player_id) if player_id == game.white_player => {
-                Some(GameState::BlackWin)
-            }
-            (GameState::Running, player_id) if player_id == game.black_player => {
-                Some(GameState::WhiteWin)
-            }
-            _ => None,
-        };
-
-        if let Some(new_game_state) = new_game_state {
+        if let Some(new_game_state) = check_new_game_state(&game, info.player_id) {
             self.game_repository
-                .update_state(game.id, new_game_state.clone())
+                .update_state(game.id, new_game_state)
                 .await?;
 
             room.relay_event(Event::GameChangeState(new_game_state));
-            self.rooms_manager.remove_room(info.game_id);
         }
 
         Ok(())

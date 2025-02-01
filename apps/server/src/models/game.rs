@@ -89,11 +89,11 @@ impl Game {
         }
     }
 
-    pub fn check_move(&self, mv: String) -> Result<Option<GameState>> {
+    pub fn check_move(&self, mv: &str) -> Result<Option<GameState>> {
         let mut position = Chess::default();
 
         let mut moves = self.moves.clone();
-        moves.push(mv);
+        moves.push(mv.to_string());
 
         for san_move in moves.iter() {
             let parsed_move = San::from_str(san_move)
@@ -124,7 +124,7 @@ impl Game {
     }
 }
 
-#[derive(Default, Serialize, Deserialize, Clone, JsonSchema, PartialEq, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, JsonSchema, PartialEq, Debug, Copy)]
 pub enum GameState {
     #[serde(rename = "waiting")]
     #[default]
@@ -163,7 +163,7 @@ mod tests {
     fn check_move_valid_move() {
         let mut game = Game::new();
         game.init_moves(vec!["e4"]);
-        let new_game_state = game.check_move(String::from("c5")).ok();
+        let new_game_state = game.check_move("c5").ok();
 
         assert_eq!(new_game_state, Some(Some(GameState::Running)))
     }
@@ -174,7 +174,7 @@ mod tests {
         game.init_moves(vec!["e4", "c5"]);
         game.state = GameState::Running;
 
-        let new_game_state = game.check_move(String::from("a3")).ok();
+        let new_game_state = game.check_move("a3").ok();
 
         assert_eq!(new_game_state, Some(None))
     }
@@ -185,7 +185,7 @@ mod tests {
         game.init_moves(vec!["e4", "c5", "a3"]);
         game.state = GameState::Running;
 
-        let new_game_state = game.check_move(String::from("Ra7")).ok();
+        let new_game_state = game.check_move("Ra7").ok();
 
         assert_eq!(new_game_state, None)
     }
@@ -196,7 +196,7 @@ mod tests {
         game.init_moves(vec!["e4", "e5", "Bc4", "a6", "Qf3", "a5"]);
         game.state = GameState::Running;
 
-        let new_game_state = game.check_move(String::from("Qxf7#")).ok();
+        let new_game_state = game.check_move("Qxf7#").ok();
 
         assert_eq!(new_game_state, Some(Some(GameState::WhiteWin)))
     }
@@ -214,7 +214,7 @@ mod tests {
         ]);
         game.state = GameState::Running;
 
-        let new_game_state = game.check_move(String::from("Qc7")).ok();
+        let new_game_state = game.check_move("Qc7").ok();
 
         assert_eq!(new_game_state, Some(Some(GameState::Draw)))
     }

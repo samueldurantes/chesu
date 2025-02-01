@@ -1,7 +1,6 @@
-use crate::http::{Error, Result};
+use crate::http::Result;
 use crate::models::event::Event;
 use crate::models::event::MoveInfo;
-use crate::models::game::GameState;
 use crate::models::rooms_manager::RoomsManagerTrait;
 use crate::repositories::game_repository::GameRepositoryTrait;
 
@@ -18,42 +17,25 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PlayMoveService<R, M> {
         }
     }
 
-    pub async fn execute(
-        &self,
-        MoveInfo {
-            game_id,
-            player_id,
-            move_played,
-        }: MoveInfo,
-    ) -> Result<(), String> {
-        let game = self.game_repository.get_game(game_id).await?;
+    pub async fn execute(&self, info: MoveInfo) -> Result<(), String> {
+        let game = self.game_repository.get_game(info.game_id).await?;
 
-        if game.get_player_color(player_id)? != game.get_turn_color() {
-            return Err(Error::BadRequest {
-                message: String::from("It's not your turn!"),
-            }
-            .to_string());
+        if game.get_player_color(info.player_id)? != game.get_turn_color() {
+            return Err(String::from("It's not your turn!"));
         }
 
-        let game_state = game.check_move(move_played.clone())?;
-
-        if let Some(new_game_state) = game_state {
+        if let Some(new_game_state) = game.check_move(&info.move_played)? {
             self.game_repository
-                .update_state(game_id, new_game_state.clone())
+                .update_state(info.game_id, new_game_state.clone())
                 .await?;
 
-            match new_game_state {
-                GameState::Running => {}
-                new_game_state => {
-                    let room = self.rooms_manager.get_room(game_id)?;
-
-                    room.relay_event(Event::GameChangeState(new_game_state));
-                }
-            }
+            self.rooms_manager
+                .get_room(info.game_id)?
+                .relay_event(Event::GameChangeState(new_game_state));
         }
 
         self.game_repository
-            .record_move(game_id, move_played)
+            .record_move(info.game_id, info.move_played)
             .await?;
 
         Ok(())
