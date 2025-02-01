@@ -40,15 +40,12 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> DisconnectService<R, M> {
             .await
             .map_err(|_| String::from("Game not found!"))?;
 
-        let white_player = game.white_player.map(|p| p.id);
-        let black_player = game.black_player.map(|p| p.id);
-
         let new_game_state = match (game.state, info.player_id) {
             (GameState::Waiting, _) => Some(GameState::Draw),
-            (GameState::Running, player_id) if Some(player_id) == white_player => {
+            (GameState::Running, player_id) if player_id == game.white_player => {
                 Some(GameState::BlackWin)
             }
-            (GameState::Running, player_id) if Some(player_id) == black_player => {
+            (GameState::Running, player_id) if player_id == game.black_player => {
                 Some(GameState::WhiteWin)
             }
             _ => None,

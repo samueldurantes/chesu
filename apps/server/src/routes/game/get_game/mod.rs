@@ -1,12 +1,14 @@
 use crate::{
     http::Result,
     models::{
-        game::Game,
+        game::Player,
         rooms_manager::{RoomsManager, RoomsManagerTrait},
     },
-    repositories::game_repository::{GameRepository, GameRepositoryTrait},
+    repositories::game_repository::{GameRepository, GameRepositoryTrait, GameWithPlayers},
+    Error,
 };
 use aide::transform::TransformOperation;
+use anyhow::anyhow;
 use axum::{extract::Path, Json};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -19,13 +21,21 @@ pub struct GameId {
     pub id: Uuid,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Default)]
 pub struct GameBody {
-    pub game: Game,
+    pub game: GameWithPlayers,
 }
 
 fn resource() -> (GameRepository, RoomsManager) {
     (GameRepository::new(), RoomsManager::new())
+}
+
+fn get_mocked_player() -> Player {
+    Player {
+        id: Uuid::new_v4(),
+        username: String::from("Waiting player..."),
+        email: String::new(),
+    }
 }
 
 pub async fn route(Path(GameId { id: game_id }): Path<GameId>) -> Result<Json<GameBody>> {
@@ -35,11 +45,23 @@ pub async fn route(Path(GameId { id: game_id }): Path<GameId>) -> Result<Json<Ga
 
     if let Some(room) = room {
         if !room.is_full() {
+            let (white_player, black_player) = match (room.white_player, room.black_player) {
+                (Some(player), None) => Ok((
+                    game_repository.get_player(player.id).await?,
+                    get_mocked_player(),
+                )),
+                (None, Some(player)) => Ok((
+                    get_mocked_player(),
+                    game_repository.get_player(player.id).await?,
+                )),
+                _ => Err(Error::Anyhow(anyhow!(""))),
+            }?;
+
             return Ok(Json(GameBody {
-                game: Game {
+                game: GameWithPlayers {
                     id: game_id,
-                    white_player: room.white_player,
-                    black_player: room.black_player,
+                    white_player,
+                    black_player,
                     ..Default::default()
                 },
             }));
@@ -47,7 +69,7 @@ pub async fn route(Path(GameId { id: game_id }): Path<GameId>) -> Result<Json<Ga
     }
 
     Ok(Json(GameBody {
-        game: game_repository.get_game(game_id).await?,
+        game: game_repository.get_game_with_players(game_id).await?,
     }))
 }
 

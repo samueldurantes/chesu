@@ -15,16 +15,8 @@ async fn test_not_player_try_play_move() {
     mock_game_repository.expect_get_game().returning(|_| {
         Ok(Game {
             id: Uuid::new_v4(),
-            white_player: Some(Player {
-                id: Uuid::new_v4(),
-                email: "".to_string(),
-                username: "".to_string(),
-            }),
-            black_player: Some(Player {
-                id: Uuid::new_v4(),
-                email: "".to_string(),
-                username: "".to_string(),
-            }),
+            white_player: Uuid::new_v4(),
+            black_player: Uuid::new_v4(),
             state: GameState::Waiting,
             bet_value: 0,
             moves: vec![],
@@ -52,16 +44,8 @@ async fn test_not_turned_player_try_play_move() {
     mock_game_repository.expect_get_game().returning(|_| {
         Ok(Game {
             id: Uuid::new_v4(),
-            white_player: Some(Player {
-                id: Uuid::new_v4(),
-                email: "".to_string(),
-                username: "".to_string(),
-            }),
-            black_player: Some(Player {
-                id: uuid::uuid!("06d6a0d9-97a8-48d0-9f81-0172c5a81b8a"),
-                email: "".to_string(),
-                username: "".to_string(),
-            }),
+            white_player: Uuid::new_v4(),
+            black_player: uuid::uuid!("06d6a0d9-97a8-48d0-9f81-0172c5a81b8a"),
             ..Default::default()
         })
     });
@@ -88,16 +72,8 @@ async fn test_right_player_play_move() {
     mock_game_repository.expect_get_game().returning(|_| {
         Ok(Game {
             id: Uuid::new_v4(),
-            white_player: Some(Player {
-                id: uuid::uuid!("06d6a0d9-97a8-48d0-9f81-0172c5a81b8a"),
-                email: "".to_string(),
-                username: "".to_string(),
-            }),
-            black_player: Some(Player {
-                id: Uuid::new_v4(),
-                email: "".to_string(),
-                username: "".to_string(),
-            }),
+            white_player: uuid::uuid!("06d6a0d9-97a8-48d0-9f81-0172c5a81b8a"),
+            black_player: Uuid::new_v4(),
             ..Default::default()
         })
     });
@@ -221,14 +197,8 @@ async fn test_player_disconnection_from_game() {
         .returning(|id| {
             Ok(Game {
                 id,
-                white_player: Some(Player {
-                    id: uuid::uuid!("6a2b4680-e96d-4e33-923f-3979d09d8ade"),
-                    ..Default::default()
-                }),
-                black_player: Some(Player {
-                    id: Uuid::new_v4(),
-                    ..Default::default()
-                }),
+                white_player: uuid::uuid!("6a2b4680-e96d-4e33-923f-3979d09d8ade"),
+                black_player: Uuid::new_v4(),
                 bet_value: 0,
                 state: GameState::Running,
                 moves: Vec::new(),

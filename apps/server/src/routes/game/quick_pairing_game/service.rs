@@ -1,5 +1,5 @@
 use crate::http::{Error, Result};
-use crate::models::game::{GameRecord, PlayerColor};
+use crate::models::game::{Game, PlayerColor};
 use crate::models::rooms_manager::{PairedGame, RoomsManagerTrait};
 use crate::repositories::game_repository::GameRepositoryTrait;
 use crate::status_500;
@@ -89,12 +89,17 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
 
                 let room = self.rooms_manager.get_room(game_id).unwrap();
 
-                let game = GameRecord {
+                let game = Game {
                     id: game_id,
-                    white_player: room.white_player.map(|p| p.id),
-                    black_player: room.black_player.map(|p| p.id),
+                    white_player: room
+                        .white_player
+                        .map(|p| p.id)
+                        .ok_or(Error::Anyhow(anyhow!("")))?,
+                    black_player: room
+                        .black_player
+                        .map(|p| p.id)
+                        .ok_or(Error::Anyhow(anyhow!("")))?,
                     bet_value: game_request.bet_value,
-                    state: String::from("waiting"),
                     ..Default::default()
                 };
 

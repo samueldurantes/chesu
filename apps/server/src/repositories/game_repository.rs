@@ -1,16 +1,52 @@
-use crate::models::game::{Game, GameRecord, GameState, Player};
-
 use crate::http::Result;
+use crate::models::game::{Game, GameState, Player};
 use crate::states::db;
 use mockall::automock;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
+
+#[derive(FromRow)]
+struct GameRecord {
+    id: Uuid,
+    white_player: Uuid,
+    black_player: Uuid,
+    bet_value: i32,
+    state: String,
+    moves: Vec<String>,
+}
+
+impl GameRecord {
+    fn to_game(self) -> Game {
+        Game {
+            id: self.id,
+            white_player: self.white_player,
+            black_player: self.black_player,
+            bet_value: self.bet_value,
+            state: serde_json::from_str(&self.state).unwrap(),
+            moves: self.moves,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Default)]
+pub struct GameWithPlayers {
+    pub id: Uuid,
+    pub white_player: Player,
+    pub black_player: Player,
+    pub bet_value: i32,
+    pub state: GameState,
+    pub moves: Vec<String>,
+}
 
 #[automock]
 pub trait GameRepositoryTrait {
     async fn get_player(&self, user_id: Uuid) -> sqlx::Result<Player>;
+    async fn get_game_with_players(&self, game_id: Uuid) -> sqlx::Result<GameWithPlayers>;
     async fn get_game(&self, game_id: Uuid) -> sqlx::Result<Game>;
-    async fn save_game(&self, game: GameRecord) -> Result<()>;
+    async fn save_game(&self, game: Game) -> Result<()>;
     async fn update_state(&self, game_id: Uuid, new_state: GameState) -> Result<()>;
     async fn record_move(&self, game_id: Uuid, move_played: String) -> sqlx::Result<()>;
 }
@@ -33,45 +69,36 @@ impl GameRepositoryTrait for GameRepository {
             .await
     }
 
-    async fn get_game(&self, game_id: Uuid) -> sqlx::Result<Game> {
-        let game_record = sqlx::query_as::<_, GameRecord>(
+    async fn get_game_with_players(&self, game_id: Uuid) -> sqlx::Result<GameWithPlayers> {
+        let game = sqlx::query_as::<_, GameRecord>(
             r#" SELECT id, white_player, black_player, bet_value, moves, state FROM games WHERE id = $1 "#,
         )
         .bind(game_id)
         .fetch_one(&self.db)
-        .await?;
+        .await?.to_game();
 
-        let white_player = if let Some(player_id) = game_record.white_player {
-            Some(self.get_player(player_id).await?)
-        } else {
-            None
-        };
-
-        let black_player = if let Some(player_id) = game_record.black_player {
-            Some(self.get_player(player_id).await?)
-        } else {
-            None
-        };
-
-        let GameRecord {
-            id,
-            moves,
-            state,
-            bet_value,
-            ..
-        } = game_record;
-
-        Ok(Game {
-            id,
-            white_player,
-            black_player,
-            state: GameState::from_str(&state),
-            bet_value,
-            moves,
+        Ok(GameWithPlayers {
+            id: game.id,
+            white_player: self.get_player(game.white_player).await?,
+            black_player: self.get_player(game.black_player).await?,
+            state: game.state,
+            bet_value: game.bet_value,
+            moves: game.moves,
         })
     }
 
-    async fn save_game(&self, game: GameRecord) -> Result<()> {
+    async fn get_game(&self, game_id: Uuid) -> sqlx::Result<Game> {
+        let game = sqlx::query_as::<_, GameRecord>(
+            r#" SELECT id, white_player, black_player, bet_value, moves, state FROM games WHERE id = $1 "#,
+        )
+        .bind(game_id)
+        .fetch_one(&self.db)
+        .await?.to_game();
+
+        Ok(game)
+    }
+
+    async fn save_game(&self, game: Game) -> Result<()> {
         sqlx::query(
             r#" INSERT INTO games (id, white_player, black_player, bet_value, moves, state) VALUES ($1, $2, $3, $4, $5, $6); "#,
         )
@@ -80,7 +107,7 @@ impl GameRepositoryTrait for GameRepository {
         .bind(game.black_player)
         .bind(game.bet_value)
         .bind(&game.moves)
-        .bind(game.state)
+        .bind(serde_json::to_string(&game.state).unwrap())
         .execute(&self.db)
         .await?;
 
@@ -89,7 +116,7 @@ impl GameRepositoryTrait for GameRepository {
 
     async fn update_state(&self, game_id: Uuid, new_state: GameState) -> Result<()> {
         sqlx::query(&format!("UPDATE games SET state = $1 WHERE id = $2;",))
-            .bind(new_state.to_string())
+            .bind(serde_json::to_string(&new_state).unwrap())
             .bind(game_id)
             .execute(&self.db)
             .await?;
