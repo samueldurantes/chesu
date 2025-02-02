@@ -57,8 +57,8 @@ const Game = () => {
     });
 
     socket.addEventListener('message', (event) => {
+      console.log(event)
       const receiverData = JSON.parse(event.data);
-      console.log(receiverData)
 
       switch (receiverData?.event) {
         case "Join":
@@ -68,7 +68,7 @@ const Game = () => {
           setSan(prevSan => [...prevSan, receiverData.data.move_played]);
           break;
         case "GameChangeState":
-          alert(receiverData?.data)
+          if (receiverData?.data != "Running") alert(receiverData?.data)
           break;
         default: return;
       }
@@ -113,14 +113,16 @@ const Game = () => {
   }
 
   const playMove = (move: string) => {
+    const data = {
+      game_id: params.id,
+      player_id: queryUser?.data?.user?.id,
+      move_played: move,
+    };
+
     connection.current?.send(
       JSON.stringify({
         event: "PlayMove",
-        data: {
-          game_id: params.id,
-          player_id: queryUser?.data?.user?.id,
-          move_played: move,
-        }
+        data
       })
     )
   }

@@ -333,18 +333,8 @@ export interface components {
       url: string;
       [key: string]: unknown;
     };
-    Game: {
-      /** Format: int32 */
-      bet_value: number;
-      black_player?: components["schemas"]["Player"] | null;
-      /** Format: uuid */
-      id: string;
-      moves: string[];
-      state: components["schemas"]["GameState"];
-      white_player?: components["schemas"]["Player"] | null;
-    };
     GameBody: {
-      game: components["schemas"]["Game"];
+      game: components["schemas"]["GameWithPlayers"];
     };
     GameId: {
       /** Format: uuid */
@@ -358,7 +348,17 @@ export interface components {
       key: string;
     };
     /** @enum {string} */
-    GameState: "Waiting" | "Running" | "Draw" | "WhiteWin" | "BlackWin";
+    GameState: "waiting" | "running" | "draw" | "white_win" | "black_win";
+    GameWithPlayers: {
+      /** Format: int32 */
+      bet_value: number;
+      black_player: components["schemas"]["Player"];
+      /** Format: uuid */
+      id: string;
+      moves: string[];
+      state: components["schemas"]["GameState"];
+      white_player: components["schemas"]["Player"];
+    };
     GenericError: {
       message: string;
     };

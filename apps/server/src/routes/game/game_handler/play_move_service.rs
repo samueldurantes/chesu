@@ -24,7 +24,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PlayMoveService<R, M> {
 
         if let Some(new_game_state) = game.check_move(&info.move_played)? {
             self.game_repository
-                .update_state(info.game_id, new_game_state.clone())
+                .update_state(info.game_id, new_game_state)
                 .await?;
 
             self.rooms_manager

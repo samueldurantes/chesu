@@ -49,7 +49,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> GetGameService<R, M> {
             });
         }
 
-        Ok(self.game_repository.get_game_with_players(room_id).await?)
+        self.game_repository.get_game_with_players(room_id).await
     }
 }
 

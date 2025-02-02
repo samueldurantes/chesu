@@ -19,15 +19,15 @@ struct GameRecord {
 }
 
 impl GameRecord {
-    fn to_game(self) -> Game {
-        Game {
+    fn to_game(self) -> Result<Game> {
+        Ok(Game {
             id: self.id,
             white_player: self.white_player,
             black_player: self.black_player,
             bet_value: self.bet_value,
-            state: serde_json::from_str(&self.state).unwrap(),
+            state: GameState::from_str(&self.state)?,
             moves: self.moves,
-        }
+        })
     }
 }
 
@@ -77,7 +77,7 @@ impl GameRepositoryTrait for GameRepository {
         )
         .bind(game_id)
         .fetch_one(&self.db)
-        .await?.to_game();
+        .await?.to_game()?;
 
         Ok(GameWithPlayers {
             id: game.id,
@@ -95,30 +95,31 @@ impl GameRepositoryTrait for GameRepository {
         )
         .bind(game_id)
         .fetch_one(&self.db)
-        .await?.to_game();
+        .await?.to_game()?;
 
         Ok(game)
     }
 
     async fn save_game(&self, game: Game) -> Result<()> {
-        sqlx::query(
-            r#" INSERT INTO games (id, white_player, black_player, bet_value, moves, state) VALUES ($1, $2, $3, $4, $5, $6); "#,
+        let result = sqlx::query(
+            r#" INSERT INTO games (id, white_player, black_player, bet_value, moves) VALUES ($1, $2, $3, $4, $5); "#,
         )
         .bind(game.id)
         .bind(game.white_player)
         .bind(game.black_player)
         .bind(game.bet_value)
         .bind(&game.moves)
-        .bind(serde_json::to_string(&game.state).unwrap())
         .execute(&self.db)
-        .await?;
+        .await;
+
+        result?;
 
         Ok(())
     }
 
     async fn update_state(&self, game_id: Uuid, new_state: GameState) -> Result<()> {
         sqlx::query(&format!("UPDATE games SET state = $1 WHERE id = $2;",))
-            .bind(serde_json::to_string(&new_state).unwrap())
+            .bind(new_state.to_string())
             .bind(game_id)
             .execute(&self.db)
             .await?;

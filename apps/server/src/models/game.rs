@@ -126,17 +126,37 @@ impl Game {
 
 #[derive(Default, Serialize, Deserialize, Clone, JsonSchema, PartialEq, Debug, Copy)]
 pub enum GameState {
-    #[serde(rename = "waiting")]
     #[default]
     Waiting,
-    #[serde(rename = "running")]
     Running,
-    #[serde(rename = "draw")]
     Draw,
-    #[serde(rename = "white_win")]
     WhiteWin,
-    #[serde(rename = "black_win")]
     BlackWin,
+}
+
+impl GameState {
+    pub fn from_str(input: &str) -> Result<Self> {
+        match input {
+            "waiting" => Ok(GameState::Waiting),
+            "running" => Ok(GameState::Running),
+            "draw" => Ok(GameState::Draw),
+            "white_win" => Ok(GameState::WhiteWin),
+            "black_win" => Ok(GameState::BlackWin),
+            _ => Err(Error::InternalServerError),
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        let result = match self {
+            GameState::Waiting => "waiting",
+            GameState::Running => "running",
+            GameState::Draw => "draw",
+            GameState::WhiteWin => "white_win",
+            GameState::BlackWin => "black_win",
+        };
+
+        result.to_string()
+    }
 }
 
 #[cfg(test)]
