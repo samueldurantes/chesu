@@ -1,11 +1,10 @@
-use server::app::{get_dotenv_path, make_app};
 use server::states::db;
+use server::{app::make_app, Env};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenvy::from_path(get_dotenv_path()).expect(".env file not found");
-
+    Env::init();
     db::init().await;
 
     tracing_subscriber::registry()
@@ -14,9 +13,7 @@ async fn main() -> anyhow::Result<()> {
 
     sqlx::migrate!().run(&db::get()).await?;
 
-    let listener =
-        tokio::net::TcpListener::bind(&std::env::var("SERVER_URL").expect("SERVER_URL is void"))
-            .await?;
+    let listener = tokio::net::TcpListener::bind(&Env::get().server_url).await?;
 
     tracing::debug!("listening on {}", listener.local_addr()?);
     axum::serve(listener, make_app()).await?;

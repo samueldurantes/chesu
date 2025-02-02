@@ -2,12 +2,14 @@ pub mod db {
     use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
     use tokio::sync::OnceCell;
 
+    use crate::Env;
+
     static DB: OnceCell<Pool<Postgres>> = OnceCell::const_new();
 
     pub async fn init() {
         let db = PgPoolOptions::new()
             .max_connections(50)
-            .connect(&std::env::var("DATABASE_URL").expect("DATABASE_URL is void"))
+            .connect(&Env::get().database_url)
             .await
             .expect("DB is not working");
 

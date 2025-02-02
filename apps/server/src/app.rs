@@ -1,3 +1,4 @@
+use crate::http::Env;
 use crate::routes;
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
 use axum::{
@@ -13,21 +14,10 @@ use tower_http::{
     sensitive_headers::SetSensitiveHeadersLayer, timeout::TimeoutLayer, trace::TraceLayer,
 };
 
-pub fn get_dotenv_path() -> String {
-    std::path::Path::new(file!())
-        .parent()
-        .expect("error on get .env path")
-        .parent()
-        .expect("error on get .env path")
-        .join(".env")
-        .to_str()
-        .unwrap()
-        .to_string()
-}
-
 fn make_app_with_api() -> (Router, OpenApi) {
-    dotenvy::from_path(get_dotenv_path()).expect(".env file not found");
-    let client_url = &std::env::var("CLIENT_URL").expect("CLIENT_URL is void");
+    Env::init();
+
+    let client_url_parsed = Env::get().client_url.parse::<HeaderValue>().unwrap();
 
     aide::gen::on_error(|error| {
         println!("{error}");
@@ -49,7 +39,7 @@ fn make_app_with_api() -> (Router, OpenApi) {
             CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST])
                 .allow_headers([CONTENT_TYPE])
-                .allow_origin(client_url.parse::<HeaderValue>().unwrap())
+                .allow_origin(client_url_parsed)
                 .allow_credentials(true),
         ));
 
