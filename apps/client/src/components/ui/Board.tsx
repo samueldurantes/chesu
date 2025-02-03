@@ -49,11 +49,13 @@ export const Board = ({ san = [], ...props }: Props) => {
   return (
     <Chessboard
       boardOrientation={props.boardOrientation}
+      clearPremovesOnRightClick={true}
       showPromotionDialog={true}
       position={fen}
       onPieceDrop={onDrop}
       areArrowsAllowed={true}
       arePremovesAllowed={true}
+      boardWidth={800}
     />
   );
 };
