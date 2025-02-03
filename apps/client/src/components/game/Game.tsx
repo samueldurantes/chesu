@@ -7,7 +7,14 @@ import {
 
 import api from '../../api/api';
 import { Board } from '../ui/Board';
-import { Card } from '../ui/Card';
+import Header from '../header/Header';
+import GameInfo from './GameInfo';
+
+enum PlayerType {
+  White,
+  Black,
+  Viewer
+}
 
 const Game = () => {
   const connection = useRef<WebSocket | null>(null);
@@ -39,10 +46,6 @@ const Game = () => {
   });
 
   const [san, setSan] = useState<string[]>(() => {
-    if (queryGame?.game?.id !== (params.id as string)) {
-      return [];
-    }
-
     return queryGame?.game?.moves || [];
   });
 
@@ -57,18 +60,18 @@ const Game = () => {
     });
 
     socket.addEventListener('message', (event) => {
-      console.log(event)
-      const receiverData = JSON.parse(event.data);
+      console.table(event.data)
+      const message = JSON.parse(event.data);
 
-      switch (receiverData?.event) {
+      switch (message?.event) {
         case "Join":
           queryClient.refetchQueries({ queryKey: ['game/detail'] });
           break;
         case "PlayMove":
-          setSan(prevSan => [...prevSan, receiverData.data.move_played]);
+          setSan(prevSan => [...prevSan, message.data.move_played]);
           break;
         case "GameChangeState":
-          if (receiverData?.data != "Running") alert(receiverData?.data)
+          if (message?.data != "Running") alert(message?.data)
           break;
         default: return;
       }
@@ -82,33 +85,39 @@ const Game = () => {
   }, [params, queryUser]);
 
 
-  const getColorLoggedPlayer = () => {
-    if (queryGame?.game?.black_player?.id === queryUser?.data?.user?.id)
-      return 'black';
+  const getPlayerType = () => {
+    if (queryGame?.game?.white_player?.id === queryUser?.data?.user?.id)
+      return PlayerType.White;
 
-    return 'white';
+    if (queryGame?.game?.black_player?.id === queryUser?.data?.user?.id)
+      return PlayerType.Black;
+
+    return PlayerType.Viewer;
   };
 
+
   const getUsernames = () => {
+    if (getPlayerType() == PlayerType.Black)
+      return {
+        top: queryGame?.game?.white_player.username,
+        bottom: queryGame?.game?.black_player.username
+      }
+
     return {
-      top: getColorLoggedPlayer() !== "white" ? queryGame?.game?.white_player?.username : queryGame?.game?.black_player?.username,
-      bottom: getColorLoggedPlayer() === "white" ? queryGame?.game?.white_player?.username : queryGame?.game?.black_player?.username,
+      top: queryGame?.game?.black_player?.username,
+      bottom: queryGame?.game?.white_player?.username
     }
   }
 
   const disconnect = (socket: WebSocket) => {
     if (socket.readyState !== WebSocket.OPEN) return;
 
-    socket.send(
-      JSON.stringify({
-        event: "Disconnect",
-        data: {
-          game_id: params.id,
-          player_id: queryUser?.data?.user?.id,
-        }
-      })
-    )
+    const data = {
+      game_id: params.id,
+      player_id: queryUser?.data?.user?.id,
+    };
 
+    socket.send(JSON.stringify({ event: "Disconnect", data }))
     socket.close();
   }
 
@@ -119,38 +128,23 @@ const Game = () => {
       move_played: move,
     };
 
-    connection.current?.send(
-      JSON.stringify({
-        event: "PlayMove",
-        data
-      })
-    )
+    connection.current?.send(JSON.stringify({ event: "PlayMove", data }))
+  }
+
+  const boardOrientation = () => {
+    return getPlayerType() == PlayerType.Black ? "black" : "white"
   }
 
   return (
-    <div className="h-screen flex items-center justify-center gap-2 bg-[#121212]">
-      <div className="flex flex-col gap-4 w-full max-w-[750px] px-6">
-        <Card className="flex items-center justify-between p-4 bg-[#1e1e1e]">
-          <div className="flex gap-2 items-center">
-            <div className="bg-white h-[50px] w-[50px]"></div>
-            <span className="text-white">{getUsernames().top || "Waiting oponent..."}</span>
-          </div>
-        </Card>
-
+    <div className="h-full min-h-screen flex flex-col items-center gap-2 bg-[#121212]">
+      <Header user={queryUser?.data?.user} />
+      <div className="flex flex-row">
         <Board
-          boardOrientation={getColorLoggedPlayer()}
+          boardOrientation={boardOrientation()}
           san={san}
           onMove={playMove}
         />
-
-        <Card className="flex items-center justify-between p-4 bg-[#1e1e1e]">
-          <div className="flex gap-2 items-center">
-            <div className="bg-white h-[50px] w-[50px]"></div>
-            <span className="text-white">
-              {getUsernames().bottom}
-            </span>
-          </div>
-        </Card>
+        <GameInfo san={san} topPlayer={getUsernames().top} bottomPlayer={getUsernames().bottom} />
       </div>
     </div>
   );
