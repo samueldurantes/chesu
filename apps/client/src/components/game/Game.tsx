@@ -60,6 +60,7 @@ const Game = () => {
       socket.send(params.id as string);
     });
 
+
     socket.addEventListener('message', (event) => {
       console.table(event.data)
       const message = JSON.parse(event.data);
@@ -72,10 +73,8 @@ const Game = () => {
           setSan(prevSan => [...prevSan, message.data.move_played]);
           break;
         case "GameChangeState":
-          if (message?.data != "Running") {
-            alert(message?.data)
+          if (message?.data != "Running")
             queryClient.refetchQueries({ queryKey: ["user/me"] })
-          }
           break;
         default: return;
       }
@@ -87,7 +86,6 @@ const Game = () => {
     connection.current = socket;
 
   }, [params, queryUser]);
-
 
   const getPlayerType = () => {
     if (queryGame?.game?.white_player?.id === queryUser?.data?.user?.id)
@@ -113,7 +111,9 @@ const Game = () => {
     }
   }
 
-  const disconnect = (socket: WebSocket) => {
+  const disconnect = (socket: WebSocket | null) => {
+    if (!socket) return;
+
     if (socket.readyState !== WebSocket.OPEN) return;
 
     const data = {
@@ -142,7 +142,7 @@ const Game = () => {
 
   return (
     <div className="h-full min-h-screen flex flex-col items-center gap-2 bg-[#121212]">
-      <Header user={queryUser?.data?.user} />
+      <Header onGoToHome={() => { disconnect(connection?.current) }} user={queryUser?.data?.user} />
       <div className="flex flex-row">
         <GameInfo
           whitePlayer={queryGame?.game?.white_player?.username}

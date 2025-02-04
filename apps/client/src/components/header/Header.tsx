@@ -16,9 +16,10 @@ interface UserInfo {
 
 interface HeaderProps {
   user?: UserInfo
+  onGoToHome?: () => void;
 }
 
-const Header = ({ user }: HeaderProps) => {
+const Header = ({ user, onGoToHome }: HeaderProps) => {
   const [openDeposit, setOpenDeposit] = useState(false);
   const [openWithdraw, setOpenWithdraw] = useState(false);
 
@@ -33,7 +34,7 @@ const Header = ({ user }: HeaderProps) => {
     <div className="h-32 w-screen flex items-center justify-between gap-2">
       <div
         className="select-none hover:cursor-pointer text-white px-6 m-8 text-4xl font-teko font-medium"
-        onClick={() => { navigate('/') }}
+        onClick={() => { onGoToHome && onGoToHome(); navigate('/') }}
       >/ Chesu</div>
       <DropdownMenu>
         <DropdownMenuTrigger className="hover:cursor-pointer select-none m-8 px-6 text-white text-xl focus:outline-none font-sans">
