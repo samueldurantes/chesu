@@ -8,6 +8,7 @@ import {
 import api from '../../api/api';
 import { Board } from '../ui/Board';
 import Header from '../header/Header';
+import GameDisplay from './GameDisplay';
 import GameInfo from './GameInfo';
 
 enum PlayerType {
@@ -71,7 +72,10 @@ const Game = () => {
           setSan(prevSan => [...prevSan, message.data.move_played]);
           break;
         case "GameChangeState":
-          if (message?.data != "Running") alert(message?.data)
+          if (message?.data != "Running") {
+            alert(message?.data)
+            queryClient.refetchQueries({ queryKey: ["user/me"] })
+          }
           break;
         default: return;
       }
@@ -139,12 +143,18 @@ const Game = () => {
     <div className="h-full min-h-screen flex flex-col items-center gap-2 bg-[#121212]">
       <Header user={queryUser?.data?.user} />
       <div className="flex flex-row">
+        <GameInfo
+          whitePlayer={queryGame?.game?.white_player?.username}
+          blackPlayer={queryGame?.game?.black_player?.username}
+          time="10 + 0"
+          betValue={queryGame?.game?.bet_value}
+        />
         <Board
           boardOrientation={boardOrientation()}
           san={san}
           onMove={playMove}
         />
-        <GameInfo san={san} topPlayer={getUsernames().top} bottomPlayer={getUsernames().bottom} />
+        <GameDisplay san={san} topPlayer={getUsernames().top} bottomPlayer={getUsernames().bottom} />
       </div>
     </div>
   );
