@@ -1,6 +1,6 @@
 use crate::http::{Error, Result};
 use crate::models::{AuthUser, GameRequest, RoomsManager};
-use crate::repositories::GameRepository;
+use crate::repositories::{GameRepository, WalletRepository};
 use aide::transform::TransformOperation;
 use axum::Json;
 use schemars::JsonSchema;
@@ -22,8 +22,12 @@ pub struct GameRequestBody {
     key: String,
 }
 
-fn resource() -> PairingGameService<GameRepository, RoomsManager> {
-    PairingGameService::new(GameRepository::new(), RoomsManager::new())
+fn resource() -> PairingGameService<GameRepository, RoomsManager, WalletRepository> {
+    PairingGameService::new(
+        GameRepository::new(),
+        RoomsManager::new(),
+        WalletRepository::new(),
+    )
 }
 
 pub async fn route(

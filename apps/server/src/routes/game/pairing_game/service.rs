@@ -1,23 +1,39 @@
 use crate::http::{Error, Result};
 use crate::internal_error;
 use crate::models::{Game, GameRequest, PairedGame, RoomsManagerTrait};
-use crate::repositories::GameRepositoryTrait;
+use crate::repositories::{GameRepositoryTrait, SaveOutgoing, WalletRepositoryTrait};
 use uuid::Uuid;
 
-pub struct PairingGameService<R: GameRepositoryTrait, M: RoomsManagerTrait> {
+pub struct PairingGameService<
+    R: GameRepositoryTrait,
+    M: RoomsManagerTrait,
+    W: WalletRepositoryTrait,
+> {
     game_repository: R,
     rooms_manager: M,
+    wallet_repository: W,
 }
 
-impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
-    pub fn new(game_repository: R, rooms_manager: M) -> Self {
+impl<R: GameRepositoryTrait, M: RoomsManagerTrait, W: WalletRepositoryTrait>
+    PairingGameService<R, M, W>
+{
+    pub fn new(game_repository: R, rooms_manager: M, wallet_repository: W) -> Self {
         Self {
             game_repository,
             rooms_manager,
+            wallet_repository,
         }
     }
 
     pub async fn execute(&self, player_id: Uuid, game_request: GameRequest) -> Result<Uuid> {
+        let balance = self.wallet_repository.get_balance(player_id).await?;
+
+        if balance < game_request.bet_value {
+            return Err(Error::BadRequest {
+                message: String::from("You don't have money enough! Deposit more sats."),
+            });
+        }
+
         let paired_game = self.rooms_manager.pair_new_player(&game_request.key);
 
         let paired_game_id = match paired_game {
@@ -48,6 +64,13 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
             }
         };
 
+        self.wallet_repository
+            .save_outgoing(SaveOutgoing {
+                user_id: player_id,
+                amount: game_request.bet_value,
+            })
+            .await?;
+
         Ok(paired_game_id)
     }
 }
@@ -56,7 +79,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PairingGameService<R, M> {
 mod tests {
     use super::*;
     use crate::models::{GameRequest, MockRoomsManagerTrait, PairedGame, Player, PlayerColor};
-    use crate::repositories::MockGameRepositoryTrait;
+    use crate::repositories::{MockGameRepositoryTrait, MockWalletRepositoryTrait};
     use mockall::predicate::*;
     use uuid::uuid;
 
@@ -64,12 +87,18 @@ mod tests {
     async fn quick_pairing_service() {
         let mut mock_game_repository = MockGameRepositoryTrait::new();
         let mut mock_rooms_manager = MockRoomsManagerTrait::new();
+        let mut mock_wallet_repository = MockWalletRepositoryTrait::new();
 
-        let request_key = "w-10-0-0";
+        let request_key = "w-10-0-10";
         let player = Player {
             id: uuid!("5d6cc3e8-8eec-4dab-881f-fddfb831cc41"),
             ..Default::default()
         };
+
+        mock_wallet_repository
+            .expect_get_balance()
+            .once()
+            .returning(|_| Ok(10000));
 
         mock_rooms_manager
             .expect_pair_new_player()
@@ -97,7 +126,17 @@ mod tests {
             .expect_add_player()
             .returning(|_, _, c| Ok(c.unwrap_or(PlayerColor::White)));
 
-        let service = PairingGameService::new(mock_game_repository, mock_rooms_manager);
+        mock_wallet_repository
+            .expect_save_outgoing()
+            .once()
+            .withf(|info| info.amount == 10)
+            .returning(|_| Ok(Uuid::new_v4()));
+
+        let service = PairingGameService::new(
+            mock_game_repository,
+            mock_rooms_manager,
+            mock_wallet_repository,
+        );
 
         let game_request = GameRequest::from_str(request_key);
 
