@@ -8,42 +8,39 @@ type Move = {
 };
 
 type Props = {
-  san?: string[];
+  san: string[];
   boardOrientation: 'white' | 'black';
-  onMove?: (move: string) => void;
+  onMove: (move: string) => void;
+  isPlayable: boolean
 };
 
 const sanToFen = (sans: string[]): string => {
   const chess = new Chess();
 
-  for (const san of sans) {
-    chess.move(san);
-  }
+  for (const san of sans) chess.move(san);
 
   return chess.fen();
 };
 
+const playMove = (fen: string, move: Move) => { return (new Chess(fen)).move(move).san; };
+
 export const Board = ({ san = [], ...props }: Props) => {
   const fen = sanToFen(san);
 
-  const playMove = (move: string | Move) => {
-    const gameCopy = new Chess(fen);
-    const result = gameCopy.move(move).san;
-
-    if (result) {
-      props.onMove && props.onMove(result);
-    }
-
-    return result;
-  };
-
   const onDrop = (sourceSquare: Square, targetSquare: Square): boolean => {
-    const move = playMove({
-      from: sourceSquare,
-      to: targetSquare,
-    });
+    const move = playMove(
+      fen,
+      {
+        from: sourceSquare,
+        to: targetSquare,
+      });
 
-    return move != null;
+    if (!props.isPlayable) return false;
+
+
+    props.onMove(move);
+
+    return true
   };
 
   return (

@@ -22,8 +22,6 @@ const Home = () => {
 
   const { mutateAsync: mutatePairingGame, isPending: _ } = useMutation({
     mutationFn: async (key: string) => {
-      console.log(key)
-
       const { data, error } = await api.POST('/game/pairing', {
         body: { key },
       });

@@ -135,9 +135,10 @@ const Game = () => {
     connection.current?.send(JSON.stringify({ event: "PlayMove", data }))
   }
 
-  const boardOrientation = () => {
-    return getPlayerType() == PlayerType.Black ? "black" : "white"
-  }
+  const boardOrientation = () => { return getPlayerType() == PlayerType.Black ? "black" : "white" }
+
+  const isGameStarted = () => getUsernames().top != "Waiting player..." && getUsernames().bottom != "Waiting player..."
+  const isPlaying = () => queryGame?.game?.white_player?.id == queryUser?.data?.user.id || queryGame?.game?.black_player?.id == queryUser?.data?.user.id
 
   return (
     <div className="h-full min-h-screen flex flex-col items-center gap-2 bg-[#121212]">
@@ -151,6 +152,7 @@ const Game = () => {
           gameState={queryGame?.game?.state}
         />
         <Board
+          isPlayable={isGameStarted() && isPlaying()}
           boardOrientation={boardOrientation()}
           san={san}
           onMove={playMove}
