@@ -3,19 +3,36 @@ interface GameInfoProps {
   betValue: number
   whitePlayer?: string
   blackPlayer?: string
+  gameState?: string
 }
 
-const GameInfo = ({ time, betValue, whitePlayer, blackPlayer }: GameInfoProps) => {
+const GameInfo = ({ gameState, time, betValue, whitePlayer, blackPlayer }: GameInfoProps) => {
+  const parsedGameState = () => {
+    switch (gameState) {
+      case "WhiteWin": return "White is victorious"
+      case "BlackWin": return "Black is victorious"
+      case "Draw": return "Draw";
+    }
+  }
 
   return (
     <div className="flex flex-col self-center m-4">
-      <div className="p-4 text-white w-72 rounded bg-[#303030]">
-        <div className="font-sans">Time: {time} </div>
-        <div className="font-sans">Bet value: {betValue} sats</div>
-        {whitePlayer != "Waiting player..." && blackPlayer == "Waiting player..." &&
+      <div className="p-4 text-white w-72 rounded bg-[#303030] flex flex-col">
+        <div className="font-sans text-lg font-semibold self-center m-1">Game</div>
+        <div className="font-sans self-center m-2">{time} 🞄 {betValue} sats</div>
+        <div className="font-sans m-1 mx-5 flex gap-2 items-center">
+          <div className="size-4 bg-white rounded-full" />
+          {whitePlayer}
+        </div>
+        <div className="font-sans m-1 mb-2 mx-5 flex gap-2 items-center">
+          <div className="size-4 border rounded-full" />
+          {blackPlayer}
+        </div>
+        {parsedGameState() &&
           <>
-            <div className="font-sans">{whitePlayer}</div>
-            <div className="font-sans">{blackPlayer}</div>
+            <div className="m-4 mb-2 pt-4 self-center border-t px-10">
+              {parsedGameState()}
+            </div>
           </>
         }
       </div>

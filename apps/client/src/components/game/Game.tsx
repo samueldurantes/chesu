@@ -148,6 +148,7 @@ const Game = () => {
           blackPlayer={queryGame?.game?.black_player?.username}
           time="10 + 0"
           betValue={queryGame?.game?.bet_value}
+          gameState={queryGame?.game?.state}
         />
         <Board
           boardOrientation={boardOrientation()}
