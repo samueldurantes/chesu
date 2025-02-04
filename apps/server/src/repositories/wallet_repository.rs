@@ -51,8 +51,13 @@ impl WalletRepository {
 }
 
 async fn save_transaction(db: &Pool<Postgres>, info: SaveTransaction) -> sqlx::Result<Uuid> {
-    let ReturnedId { id } = sqlx::query_as::<_, ReturnedId>(
-        r#"
+    let signal = match info.direction.as_str() {
+        "input" => "+",
+        _ => "-",
+    };
+
+    let ReturnedId { id } = sqlx::query_as::<_, ReturnedId>(&format!(
+        "
             WITH last_transaction AS (
                 SELECT last_balance AS last_balance
                 FROM transactions
@@ -61,10 +66,10 @@ async fn save_transaction(db: &Pool<Postgres>, info: SaveTransaction) -> sqlx::R
                 LIMIT 1
             )
             INSERT INTO transactions (user_id, type, amount, last_balance, invoice)
-            VALUES ( $1, $2, $3, (SELECT last_balance FROM last_transaction) + $3, $4) 
+            VALUES ( $1, $2, $3, (SELECT last_balance FROM last_transaction) {signal} $3, $4) 
             RETURNING id;
-        "#,
-    )
+        ",
+    ))
     .bind(info.user_id)
     .bind(info.direction)
     .bind(info.amount)
