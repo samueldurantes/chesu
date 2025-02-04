@@ -2,11 +2,13 @@ use uuid::Uuid;
 
 use crate::http::Result;
 use crate::models::{DisconnectInfo, Event, Game, GameState, RoomsManagerTrait};
-use crate::repositories::GameRepositoryTrait;
+use crate::repositories::{GameRepositoryTrait, SaveIncoming, WalletRepositoryTrait};
 
-pub struct DisconnectService<R: GameRepositoryTrait, M: RoomsManagerTrait> {
+pub struct DisconnectService<R: GameRepositoryTrait, M: RoomsManagerTrait, W: WalletRepositoryTrait>
+{
     game_repository: R,
     rooms_manager: M,
+    wallet_repository: W,
 }
 
 fn check_new_game_state(game: &Game, player_disconnect: Uuid) -> Option<GameState> {
@@ -22,11 +24,48 @@ fn check_new_game_state(game: &Game, player_disconnect: Uuid) -> Option<GameStat
     }
 }
 
-impl<R: GameRepositoryTrait, M: RoomsManagerTrait> DisconnectService<R, M> {
-    pub fn new(game_repository: R, rooms_manager: M) -> Self {
+pub async fn resolve_bet<W: WalletRepositoryTrait>(
+    wallet_repository: &W,
+    game: &Game,
+) -> Result<()> {
+    let (white_amount, black_amount) = match game.state {
+        GameState::Draw => (game.bet_value, game.bet_value),
+        GameState::WhiteWin => (2 * game.bet_value, 0),
+        GameState::BlackWin => (0, 2 * game.bet_value),
+        _ => (0, 0),
+    };
+
+    if white_amount > 0 {
+        wallet_repository
+            .save_incoming(SaveIncoming {
+                user_id: game.white_player,
+                amount: white_amount,
+                invoice: None,
+            })
+            .await?;
+    }
+
+    if black_amount > 0 {
+        wallet_repository
+            .save_incoming(SaveIncoming {
+                user_id: game.black_player,
+                amount: black_amount,
+                invoice: None,
+            })
+            .await?;
+    }
+
+    Ok(())
+}
+
+impl<R: GameRepositoryTrait, M: RoomsManagerTrait, W: WalletRepositoryTrait>
+    DisconnectService<R, M, W>
+{
+    pub fn new(game_repository: R, rooms_manager: M, wallet_repository: W) -> Self {
         Self {
             game_repository,
             rooms_manager,
+            wallet_repository,
         }
     }
 
@@ -37,21 +76,25 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> DisconnectService<R, M> {
             return Ok(());
         }
 
-        self.rooms_manager.remove_room(info.game_id);
-
         if !room.is_full() {
             return Ok(self.rooms_manager.remove_request(&room.request_key));
         }
 
-        let game = self.game_repository.get_game(info.game_id).await?;
+        let mut game = self.game_repository.get_game(info.game_id).await?;
 
         if let Some(new_game_state) = check_new_game_state(&game, info.player_id) {
+            game.state = new_game_state;
+
             self.game_repository
                 .update_state(game.id, new_game_state)
                 .await?;
 
+            resolve_bet(&self.wallet_repository, &game).await?;
+
             room.relay_event(Event::GameChangeState(new_game_state));
         }
+
+        self.rooms_manager.remove_room(info.game_id);
 
         Ok(())
     }
@@ -61,7 +104,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> DisconnectService<R, M> {
 mod tests {
     use super::*;
     use crate::models::{DisconnectInfo, Game, GameState, MockRoomsManagerTrait, Room};
-    use crate::repositories::MockGameRepositoryTrait;
+    use crate::repositories::{MockGameRepositoryTrait, MockWalletRepositoryTrait};
     use tokio::sync::broadcast;
     use uuid::Uuid;
 
@@ -69,6 +112,7 @@ mod tests {
     async fn test_player_disconnection_from_request() {
         let mock_game_repository = MockGameRepositoryTrait::new();
         let mut mock_rooms_manager = MockRoomsManagerTrait::new();
+        let mock_wallet_repository = MockWalletRepositoryTrait::new();
 
         mock_rooms_manager.expect_get_room().once().returning(|_| {
             Ok(Room {
@@ -96,7 +140,11 @@ mod tests {
             player_id: uuid::uuid!("73c1fad5-db48-4dce-8e03-6be3b43b0e7b"),
         };
 
-        let service = DisconnectService::new(mock_game_repository, mock_rooms_manager);
+        let service = DisconnectService::new(
+            mock_game_repository,
+            mock_rooms_manager,
+            mock_wallet_repository,
+        );
 
         let result = service.execute(input).await;
 
@@ -107,6 +155,7 @@ mod tests {
     async fn test_player_disconnection_from_game() {
         let mut mock_game_repository = MockGameRepositoryTrait::new();
         let mut mock_rooms_manager = MockRoomsManagerTrait::new();
+        let mock_wallet_repository = MockWalletRepositoryTrait::new();
 
         let input = DisconnectInfo {
             game_id: uuid::uuid!("73c1fad5-db48-4dce-8e03-6be3b43b0e7b"),
@@ -155,7 +204,11 @@ mod tests {
             .withf(|id| id == &uuid::uuid!("73c1fad5-db48-4dce-8e03-6be3b43b0e7b"))
             .returning(|_| ());
 
-        let service = DisconnectService::new(mock_game_repository, mock_rooms_manager);
+        let service = DisconnectService::new(
+            mock_game_repository,
+            mock_rooms_manager,
+            mock_wallet_repository,
+        );
 
         let result = service.execute(input).await;
 
@@ -166,6 +219,7 @@ mod tests {
     async fn test_viewer_disconnection() {
         let mut mock_game_repository = MockGameRepositoryTrait::new();
         let mut mock_rooms_manager = MockRoomsManagerTrait::new();
+        let mock_wallet_repository = MockWalletRepositoryTrait::new();
 
         let input = DisconnectInfo {
             game_id: uuid::uuid!("73c1fad5-db48-4dce-8e03-6be3b43b0e7b"),
@@ -189,7 +243,11 @@ mod tests {
         mock_game_repository.expect_update_state().never();
         mock_rooms_manager.expect_remove_room().never();
 
-        let service = DisconnectService::new(mock_game_repository, mock_rooms_manager);
+        let service = DisconnectService::new(
+            mock_game_repository,
+            mock_rooms_manager,
+            mock_wallet_repository,
+        );
 
         let result = service.execute(input).await;
 

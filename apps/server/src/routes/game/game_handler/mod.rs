@@ -1,6 +1,6 @@
 use crate::{
     models::{Event, RoomsManager, RoomsManagerTrait},
-    repositories::GameRepository,
+    repositories::{GameRepository, WalletRepository},
 };
 use aide::{transform::TransformOperation, NoApi};
 use axum::{
@@ -21,12 +21,20 @@ mod disconnect_service;
 mod play_move_service;
 
 fn resource() -> (
-    PlayMoveService<GameRepository, RoomsManager>,
-    DisconnectService<GameRepository, RoomsManager>,
+    PlayMoveService<GameRepository, RoomsManager, WalletRepository>,
+    DisconnectService<GameRepository, RoomsManager, WalletRepository>,
 ) {
     (
-        PlayMoveService::new(GameRepository::new(), RoomsManager::new()),
-        DisconnectService::new(GameRepository::new(), RoomsManager::new()),
+        PlayMoveService::new(
+            GameRepository::new(),
+            RoomsManager::new(),
+            WalletRepository::new(),
+        ),
+        DisconnectService::new(
+            GameRepository::new(),
+            RoomsManager::new(),
+            WalletRepository::new(),
+        ),
     )
 }
 

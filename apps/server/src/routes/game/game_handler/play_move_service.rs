@@ -1,31 +1,41 @@
 use crate::http::Result;
 use crate::models::{Event, MoveInfo, RoomsManagerTrait};
-use crate::repositories::GameRepositoryTrait;
+use crate::repositories::{GameRepositoryTrait, WalletRepositoryTrait};
 
-pub struct PlayMoveService<R: GameRepositoryTrait, M: RoomsManagerTrait> {
+use super::disconnect_service::resolve_bet;
+
+pub struct PlayMoveService<R: GameRepositoryTrait, M: RoomsManagerTrait, W: WalletRepositoryTrait> {
     game_repository: R,
     rooms_manager: M,
+    wallet_repository: W,
 }
 
-impl<R: GameRepositoryTrait, M: RoomsManagerTrait> PlayMoveService<R, M> {
-    pub fn new(game_repository: R, rooms_manager: M) -> Self {
+impl<R: GameRepositoryTrait, M: RoomsManagerTrait, W: WalletRepositoryTrait>
+    PlayMoveService<R, M, W>
+{
+    pub fn new(game_repository: R, rooms_manager: M, wallet_repository: W) -> Self {
         Self {
             game_repository,
             rooms_manager,
+            wallet_repository,
         }
     }
 
     pub async fn execute(&self, info: MoveInfo) -> Result<(), String> {
-        let game = self.game_repository.get_game(info.game_id).await?;
+        let mut game = self.game_repository.get_game(info.game_id).await?;
 
         if game.get_player_color(info.player_id)? != game.get_turn_color() {
             return Err(String::from("It's not your turn!"));
         }
 
         if let Some(new_game_state) = game.check_move(&info.move_played)? {
+            game.state = new_game_state;
+
             self.game_repository
                 .update_state(info.game_id, new_game_state)
                 .await?;
+
+            resolve_bet(&self.wallet_repository, &game).await?;
 
             self.rooms_manager
                 .get_room(info.game_id)?
@@ -45,13 +55,14 @@ mod tests {
     use super::*;
     use crate::http::Error;
     use crate::models::{Game, GameState, MockRoomsManagerTrait, MoveInfo};
-    use crate::repositories::MockGameRepositoryTrait;
+    use crate::repositories::{MockGameRepositoryTrait, MockWalletRepositoryTrait};
     use uuid::Uuid;
 
     #[tokio::test]
     async fn test_not_player_try_play_move() {
         let mut mock_game_repository = MockGameRepositoryTrait::new();
         let mock_rooms_manager = MockRoomsManagerTrait::new();
+        let mock_wallet_repository = MockWalletRepositoryTrait::new();
 
         mock_game_repository.expect_get_game().returning(|_| {
             Ok(Game {
@@ -63,7 +74,11 @@ mod tests {
                 moves: vec![],
             })
         });
-        let service = PlayMoveService::new(mock_game_repository, mock_rooms_manager);
+        let service = PlayMoveService::new(
+            mock_game_repository,
+            mock_rooms_manager,
+            mock_wallet_repository,
+        );
 
         let input = MoveInfo {
             player_id: Uuid::new_v4(),
@@ -81,6 +96,7 @@ mod tests {
     async fn test_not_turned_player_try_play_move() {
         let mut mock_game_repository = MockGameRepositoryTrait::new();
         let mock_rooms_manager = MockRoomsManagerTrait::new();
+        let mock_wallet_repository = MockWalletRepositoryTrait::new();
 
         mock_game_repository.expect_get_game().returning(|_| {
             Ok(Game {
@@ -91,7 +107,11 @@ mod tests {
             })
         });
 
-        let service = PlayMoveService::new(mock_game_repository, mock_rooms_manager);
+        let service = PlayMoveService::new(
+            mock_game_repository,
+            mock_rooms_manager,
+            mock_wallet_repository,
+        );
 
         let input = MoveInfo {
             player_id: uuid::uuid!("06d6a0d9-97a8-48d0-9f81-0172c5a81b8a"),
@@ -109,6 +129,7 @@ mod tests {
     async fn test_right_player_play_move() {
         let mut mock_game_repository = MockGameRepositoryTrait::new();
         let mock_rooms_manager = MockRoomsManagerTrait::new();
+        let mock_wallet_repository = MockWalletRepositoryTrait::new();
 
         mock_game_repository.expect_get_game().returning(|_| {
             Ok(Game {
@@ -124,7 +145,11 @@ mod tests {
             .once()
             .returning(|_, _| Ok(()));
 
-        let service = PlayMoveService::new(mock_game_repository, mock_rooms_manager);
+        let service = PlayMoveService::new(
+            mock_game_repository,
+            mock_rooms_manager,
+            mock_wallet_repository,
+        );
 
         let input = MoveInfo {
             player_id: uuid::uuid!("06d6a0d9-97a8-48d0-9f81-0172c5a81b8a"),
@@ -141,6 +166,7 @@ mod tests {
     async fn test_game_not_found() {
         let mut mock_game_repository = MockGameRepositoryTrait::new();
         let mock_rooms_manager = MockRoomsManagerTrait::new();
+        let mock_wallet_repository = MockWalletRepositoryTrait::new();
 
         mock_game_repository
             .expect_get_game()
@@ -157,7 +183,11 @@ mod tests {
             move_played: String::from("e4"),
         };
 
-        let service = PlayMoveService::new(mock_game_repository, mock_rooms_manager);
+        let service = PlayMoveService::new(
+            mock_game_repository,
+            mock_rooms_manager,
+            mock_wallet_repository,
+        );
 
         let result = service.execute(input).await;
 
