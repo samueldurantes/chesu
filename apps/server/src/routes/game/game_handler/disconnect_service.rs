@@ -76,6 +76,8 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait, W: WalletRepositoryTrait>
             return Ok(());
         }
 
+        self.rooms_manager.remove_room(info.game_id);
+
         if !room.is_full() {
             return Ok(self.rooms_manager.remove_request(&room.request_key));
         }
@@ -93,8 +95,6 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait, W: WalletRepositoryTrait>
 
             room.relay_event(Event::GameChangeState(new_game_state));
         }
-
-        self.rooms_manager.remove_room(info.game_id);
 
         Ok(())
     }
