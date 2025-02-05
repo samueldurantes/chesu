@@ -348,8 +348,10 @@ export interface components {
       key: string;
     };
     /** @enum {string} */
-    GameState: "waiting" | "running" | "draw" | "white_win" | "black_win";
+    GameState: "Waiting" | "Running" | "Draw" | "WhiteWin" | "BlackWin";
     GameWithPlayers: {
+      /** Format: int32 */
+      additional_time: number;
       /** Format: int32 */
       bet_value: number;
       black_player: components["schemas"]["Player"];
@@ -357,6 +359,8 @@ export interface components {
       id: string;
       moves: string[];
       state: components["schemas"]["GameState"];
+      /** Format: int32 */
+      time: number;
       white_player: components["schemas"]["Player"];
     };
     GenericError: {

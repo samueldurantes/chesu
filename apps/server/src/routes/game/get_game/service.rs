@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use crate::http::{Error, Result};
-use crate::models::{Player, RoomsManagerTrait};
+use crate::models::{GameRequest, Player, RoomsManagerTrait};
 use crate::repositories::{GameRepositoryTrait, GameWithPlayers};
 
 pub struct GetGameService<R: GameRepositoryTrait, M: RoomsManagerTrait> {
@@ -42,10 +42,20 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> GetGameService<R, M> {
                     _ => Err(Error::InternalServerError),
                 }?;
 
+                let GameRequest {
+                    time,
+                    additional_time,
+                    bet_value,
+                    ..
+                } = GameRequest::from_str(&room.request_key)?;
+
                 return Ok(GameWithPlayers {
                     id: room_id,
                     white_player,
                     black_player,
+                    time,
+                    additional_time,
+                    bet_value,
                     ..Default::default()
                 });
             }

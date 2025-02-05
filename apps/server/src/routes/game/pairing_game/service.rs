@@ -54,6 +54,8 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait, W: WalletRepositoryTrait>
                     id: game_id,
                     white_player: room.white_player.ok_or(internal_error!())?,
                     black_player: room.black_player.ok_or(internal_error!())?,
+                    time: game_request.time,
+                    additional_time: game_request.additional_time,
                     bet_value: game_request.bet_value,
                     ..Default::default()
                 };

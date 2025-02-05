@@ -5,8 +5,8 @@ use crate::http::{Error, Result};
 pub struct GameRequest {
     pub key: String,
     pub player_color: Option<PlayerColor>,
-    pub total_time: u8,
-    pub turn_time: u8,
+    pub time: i32,
+    pub additional_time: i32,
     pub bet_value: i32,
 }
 
@@ -20,13 +20,6 @@ fn resolve_i32(input: Option<&str>) -> Result<i32> {
     input
         .ok_or(invalid_game_request())?
         .parse::<i32>()
-        .map_err(|_| invalid_game_request())
-}
-
-fn resolve_u8(input: Option<&str>) -> Result<u8> {
-    input
-        .ok_or(invalid_game_request())?
-        .parse::<u8>()
         .map_err(|_| invalid_game_request())
 }
 
@@ -46,18 +39,18 @@ impl GameRequest {
         let mut result = key.split("-");
 
         let player_color = resolve_player_color(result.next())?;
-        let total_time = resolve_u8(result.next())?;
-        let turn_time = resolve_u8(result.next())?;
+        let time = resolve_i32(result.next())?;
+        let additional_time = resolve_i32(result.next())?;
         let bet_value = resolve_i32(result.next())?;
 
-        if total_time <= 0 || bet_value < 0 {
+        if time <= 0 || additional_time < 0 || bet_value < 0 {
             return Err(invalid_game_request());
         }
 
         Ok(Self {
             key: key.to_string(),
-            total_time,
-            turn_time,
+            time,
+            additional_time,
             bet_value,
             player_color,
         })
@@ -89,8 +82,8 @@ mod tests {
             Some(GameRequest {
                 key: input.to_string(),
                 player_color: Some(PlayerColor::White),
-                total_time: 10,
-                turn_time: 0,
+                time: 10,
+                additional_time: 0,
                 bet_value: 0,
             })
         )
@@ -115,8 +108,8 @@ mod tests {
             Some(GameRequest {
                 key: input.to_string(),
                 player_color: Some(PlayerColor::Black),
-                total_time: 30,
-                turn_time: 10,
+                time: 30,
+                additional_time: 10,
                 bet_value: 10000,
             })
         )
