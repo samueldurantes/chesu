@@ -30,7 +30,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait, W: WalletRepositoryTrait>
 
         if balance < game_request.bet_value {
             return Err(Error::BadRequest {
-                message: String::from("You don't have money enough! Deposit more sats."),
+                message: String::from("You don't have enough money! Deposit more sats."),
             });
         }
 
@@ -48,7 +48,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait, W: WalletRepositoryTrait>
             PairedGame::ExistingGame(game_id) => {
                 self.rooms_manager.add_player(game_id, player_id, None)?;
 
-                let room = self.rooms_manager.get_room(game_id).unwrap();
+                let room = self.rooms_manager.get_room(game_id)?;
 
                 let game = Game {
                     id: game_id,
@@ -60,20 +60,43 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait, W: WalletRepositoryTrait>
                     ..Default::default()
                 };
 
-                self.game_repository.save_game(game).await?;
+                self.handle_game_save(game).await?;
 
                 game_id
             }
         };
 
+        Ok(paired_game_id)
+    }
+
+    async fn handle_game_save(&self, game: Game) -> Result<()> {
+        let white_player = game.white_player;
+        let black_player = game.black_player;
+        let bet_value = game.bet_value;
+
+        self.game_repository.save_game(game).await?;
+
         self.wallet_repository
             .save_outgoing(SaveOutgoing {
-                user_id: player_id,
-                amount: game_request.bet_value,
+                user_id: white_player,
+                amount: bet_value,
             })
-            .await?;
+            .await
+            .map(|_| Error::BadRequest {
+                message: String::from("You or your opponent don't have enough money!"),
+            })?;
 
-        Ok(paired_game_id)
+        self.wallet_repository
+            .save_outgoing(SaveOutgoing {
+                user_id: black_player,
+                amount: bet_value,
+            })
+            .await
+            .map(|_| Error::BadRequest {
+                message: String::from("You or your opponent don't have enough money!"),
+            })?;
+
+        Ok(())
     }
 }
 
@@ -130,7 +153,6 @@ mod tests {
 
         mock_wallet_repository
             .expect_save_outgoing()
-            .once()
             .withf(|info| info.amount == 10)
             .returning(|_| Ok(Uuid::new_v4()));
 
