@@ -61,6 +61,8 @@ pub struct Game {
     pub white_player: Uuid,
     pub black_player: Uuid,
     pub bet_value: i32,
+    pub time: i32,
+    pub additional_time: i32,
     pub state: GameState,
     pub moves: Vec<String>,
 }

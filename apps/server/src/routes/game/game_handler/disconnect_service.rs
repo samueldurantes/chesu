@@ -198,6 +198,8 @@ mod tests {
                     white_player: uuid::uuid!("6a2b4680-e96d-4e33-923f-3979d09d8ade"),
                     black_player: Uuid::new_v4(),
                     bet_value: 0,
+                    time: 10,
+                    additional_time: 0,
                     state: GameState::Running,
                     moves: Vec::new(),
                 })

@@ -14,6 +14,8 @@ struct GameRecord {
     white_player: Uuid,
     black_player: Uuid,
     bet_value: i32,
+    time: i32,
+    additional_time: i32,
     state: String,
     moves: Vec<String>,
 }
@@ -25,6 +27,8 @@ impl GameRecord {
             white_player: self.white_player,
             black_player: self.black_player,
             bet_value: self.bet_value,
+            time: self.time,
+            additional_time: self.additional_time,
             state: GameState::from_str(&self.state)?,
             moves: self.moves,
         })
@@ -37,6 +41,8 @@ pub struct GameWithPlayers {
     pub white_player: Player,
     pub black_player: Player,
     pub bet_value: i32,
+    pub time: i32,
+    pub additional_time: i32,
     pub state: GameState,
     pub moves: Vec<String>,
 }
@@ -73,7 +79,7 @@ impl GameRepositoryTrait for GameRepository {
 
     async fn get_game_with_players(&self, game_id: Uuid) -> Result<GameWithPlayers> {
         let game = sqlx::query_as::<_, GameRecord>(
-            r#" SELECT id, white_player, black_player, bet_value, moves, state FROM games WHERE id = $1 "#,
+            r#" SELECT id, white_player, black_player, bet_value, moves, time, additional_time state FROM games WHERE id = $1 "#,
         )
         .bind(game_id)
         .fetch_one(&self.db)
@@ -83,6 +89,8 @@ impl GameRepositoryTrait for GameRepository {
             id: game.id,
             white_player: self.get_player(game.white_player).await?,
             black_player: self.get_player(game.black_player).await?,
+            time: game.time,
+            additional_time: game.additional_time,
             state: game.state,
             bet_value: game.bet_value,
             moves: game.moves,
@@ -91,7 +99,7 @@ impl GameRepositoryTrait for GameRepository {
 
     async fn get_game(&self, game_id: Uuid) -> Result<Game> {
         let game = sqlx::query_as::<_, GameRecord>(
-            r#" SELECT id, white_player, black_player, bet_value, moves, state FROM games WHERE id = $1 "#,
+            r#" SELECT id, white_player, black_player, bet_value, moves, time, additional_time, state FROM games WHERE id = $1 "#,
         )
         .bind(game_id)
         .fetch_one(&self.db)
@@ -102,13 +110,15 @@ impl GameRepositoryTrait for GameRepository {
 
     async fn save_game(&self, game: Game) -> Result<()> {
         let result = sqlx::query(
-            r#" INSERT INTO games (id, white_player, black_player, bet_value, moves) VALUES ($1, $2, $3, $4, $5); "#,
+            r#" INSERT INTO games (id, white_player, black_player, bet_value, moves, time, additional_time) VALUES ($1, $2, $3, $4, $5, $6, $7); "#,
         )
         .bind(game.id)
         .bind(game.white_player)
         .bind(game.black_player)
         .bind(game.bet_value)
         .bind(&game.moves)
+        .bind(game.time)
+        .bind(game.additional_time)
         .execute(&self.db)
         .await;
 
@@ -118,7 +128,7 @@ impl GameRepositoryTrait for GameRepository {
     }
 
     async fn update_state(&self, game_id: Uuid, new_state: GameState) -> Result<()> {
-        sqlx::query(&format!("UPDATE games SET state = $1 WHERE id = $2;",))
+        sqlx::query(&format!("UPDATE games SET state = $1 WHERE id = $2;"))
             .bind(new_state.to_string())
             .bind(game_id)
             .execute(&self.db)

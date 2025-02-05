@@ -5,6 +5,8 @@ CREATE TABLE games
   black_player     uuid not null references "users" (id),
   moves            text[]        not null default array[]::text[],
   state            text not null check (state in  ('waiting', 'running', 'draw', 'white_win', 'black_win')) default 'waiting',
+  time             int not null,
+  additional_time  int not null,
   bet_value        int           not null,
   created_at       timestamptz   not null default now(),
   updated_at       timestamptz

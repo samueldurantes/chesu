@@ -70,6 +70,8 @@ mod tests {
                 white_player: Uuid::new_v4(),
                 black_player: Uuid::new_v4(),
                 state: GameState::Waiting,
+                time: 10,
+                additional_time: 0,
                 bet_value: 0,
                 moves: vec![],
             })
