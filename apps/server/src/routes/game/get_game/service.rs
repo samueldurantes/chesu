@@ -67,7 +67,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait> GetGameService<R, M> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        models::{MockRoomsManagerTrait, Room},
+        models::{ChessTime, MockRoomsManagerTrait, Room},
         repositories::MockGameRepositoryTrait,
     };
     use tokio::sync::broadcast;
@@ -85,6 +85,8 @@ mod tests {
                 request_key: String::from("w-10-0-0"),
                 white_player: Some(uuid!("7e72d61a-c7d0-4260-94ab-7c5a3a41ac72")),
                 black_player: None,
+                white_time: ChessTime::new(10, 0),
+                black_time: ChessTime::new(10, 0),
                 tx: broadcast::channel(100).0,
             })
         });
@@ -125,6 +127,8 @@ mod tests {
                 request_key: String::from("w-10-0-0"),
                 white_player: Some(uuid!("7e72d61a-c7d0-4260-94ab-7c5a3a41ac72")),
                 black_player: Some(uuid!("8734278b-1363-42d1-8c24-c13214d23b0b")),
+                white_time: ChessTime::new(10, 0),
+                black_time: ChessTime::new(10, 0),
                 tx: broadcast::channel(100).0,
             })
         });

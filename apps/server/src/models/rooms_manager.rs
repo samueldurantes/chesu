@@ -1,6 +1,7 @@
 use super::event::Event;
 use super::game::PlayerColor;
 use crate::{http::Result, states::rooms_manager, Error};
+use chrono::Utc;
 use mockall::automock;
 use std::{
     collections::HashMap,
@@ -19,15 +20,36 @@ pub struct Room {
     pub request_key: String,
     pub white_player: Option<Uuid>,
     pub black_player: Option<Uuid>,
+    pub white_time: ChessTime,
+    pub black_time: ChessTime,
     pub tx: broadcast::Sender<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ChessTime {
+    pub rest: i32,
+    pub last_move: Option<Utc>,
+    pub additional_time: i32,
+}
+
+impl ChessTime {
+    pub fn new(rest: i32, additional_time: i32) -> ChessTime {
+        Self {
+            rest,
+            last_move: None,
+            additional_time,
+        }
+    }
+}
+
 impl Room {
-    pub fn new(request_key: String) -> Self {
+    pub fn new(request_key: String, time: i32, additional_time: i32) -> Self {
         Self {
             request_key,
             white_player: None,
             black_player: None,
+            white_time: ChessTime::new(time, additional_time),
+            black_time: ChessTime::new(time, additional_time),
             tx: broadcast::channel(100).0,
         }
     }
@@ -77,12 +99,19 @@ impl Room {
     }
 }
 
+pub struct CreateRoomInfo {
+    pub room_id: Uuid,
+    pub request_key: String,
+    pub time: i32,
+    pub additional_time: i32,
+}
+
 #[automock]
 pub trait RoomsManagerTrait: Send + Sync {
     fn get_room_tx(&self, room_id: Uuid) -> Result<broadcast::Sender<String>>;
 
     fn get_room(&self, room_id: Uuid) -> Result<Room>;
-    fn create_room(&self, room_id: Uuid, request_key: &str);
+    fn create_room(&self, info: CreateRoomInfo);
     fn add_player(
         &self,
         room_id: Uuid,
@@ -140,11 +169,11 @@ impl RoomsManagerTrait for RoomsManager {
             .clone())
     }
 
-    fn create_room(&self, room_id: Uuid, request_key: &str) {
-        self.game_rooms
-            .lock()
-            .unwrap()
-            .insert(room_id, Room::new(request_key.to_string()));
+    fn create_room(&self, info: CreateRoomInfo) {
+        self.game_rooms.lock().unwrap().insert(
+            info.room_id,
+            Room::new(info.request_key, info.time, info.additional_time),
+        );
     }
 
     fn add_player(
@@ -208,7 +237,12 @@ mod tests {
         let player1 = Uuid::new_v4();
         let player2 = Uuid::new_v4();
 
-        rooms_manager.create_room(room_id, "123");
+        rooms_manager.create_room(CreateRoomInfo {
+            room_id,
+            request_key: String::from("w-10-0-0"),
+            time: 10,
+            additional_time: 0,
+        });
 
         let player1_color = rooms_manager.add_player(room_id, player1, None);
 
@@ -231,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_add_player_to_room() {
-        let mut room = Room::new(String::from("123"));
+        let mut room = Room::new(String::from("w-10-0-0"), 10, 0);
 
         let player1 = Uuid::new_v4();
         let player2 = Uuid::new_v4();
@@ -253,7 +287,7 @@ mod tests {
 
     #[test]
     fn test_add_2_players_to_room() {
-        let mut room = Room::new(String::from(""));
+        let mut room = Room::new(String::from("w-10-0-0"), 10, 0);
 
         let player1 = Uuid::new_v4();
         let player2 = Uuid::new_v4();
@@ -275,7 +309,7 @@ mod tests {
 
     #[test]
     fn test_two_players_picking_white() {
-        let mut room = Room::new(String::from(""));
+        let mut room = Room::new(String::from("w-10-0-0"), 10, 0);
 
         let player1 = Uuid::new_v4();
         let player2 = Uuid::new_v4();
@@ -296,7 +330,7 @@ mod tests {
 
     #[test]
     fn test_add_three_players() {
-        let mut room = Room::new(String::from(""));
+        let mut room = Room::new(String::from("w-10-0-0"), 10, 0);
 
         let player1 = Uuid::new_v4();
         let player2 = Uuid::new_v4();
@@ -350,7 +384,12 @@ mod tests {
         let player = Uuid::new_v4();
 
         if let PairedGame::NewGame(room_id) = rooms_manager.pair_new_player("w-10-0-0") {
-            rooms_manager.create_room(room_id, "w-10-0-0");
+            rooms_manager.create_room(CreateRoomInfo {
+                room_id,
+                time: 10,
+                additional_time: 0,
+                request_key: String::from("w-10-0-0"),
+            });
             rooms_manager
                 .add_player(room_id, player, Some(PlayerColor::Black))
                 .unwrap();

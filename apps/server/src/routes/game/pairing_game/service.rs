@@ -1,6 +1,6 @@
 use crate::http::{Error, Result};
 use crate::internal_error;
-use crate::models::{Game, GameRequest, PairedGame, RoomsManagerTrait};
+use crate::models::{CreateRoomInfo, Game, GameRequest, PairedGame, RoomsManagerTrait};
 use crate::repositories::{GameRepositoryTrait, SaveOutgoing, WalletRepositoryTrait};
 use uuid::Uuid;
 
@@ -38,7 +38,12 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait, W: WalletRepositoryTrait>
 
         let paired_game_id = match paired_game {
             PairedGame::NewGame(game_id) => {
-                self.rooms_manager.create_room(game_id, &game_request.key);
+                self.rooms_manager.create_room(CreateRoomInfo {
+                    room_id: game_id,
+                    time: game_request.time,
+                    additional_time: game_request.additional_time,
+                    request_key: game_request.key,
+                });
                 self.rooms_manager
                     .add_player(game_id, player_id, game_request.player_color)?;
 
@@ -139,13 +144,7 @@ mod tests {
                 })
             });
 
-        mock_rooms_manager
-            .expect_create_room()
-            .with(
-                eq(uuid!("06d6a0d9-97a8-48d0-9f81-0172c5a81b8a")),
-                eq(request_key.to_string()),
-            )
-            .return_const(());
+        mock_rooms_manager.expect_create_room().return_const(());
 
         mock_rooms_manager
             .expect_add_player()

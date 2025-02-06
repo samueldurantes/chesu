@@ -111,7 +111,7 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait, W: WalletRepositoryTrait>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{DisconnectInfo, Game, GameState, MockRoomsManagerTrait, Room};
+    use crate::models::{ChessTime, DisconnectInfo, Game, GameState, MockRoomsManagerTrait, Room};
     use crate::repositories::{MockGameRepositoryTrait, MockWalletRepositoryTrait};
     use tokio::sync::broadcast;
     use uuid::Uuid;
@@ -127,6 +127,8 @@ mod tests {
                 request_key: String::from("w-10-0-0"),
                 white_player: Some(uuid::uuid!("73c1fad5-db48-4dce-8e03-6be3b43b0e7b")),
                 black_player: None,
+                white_time: ChessTime::new(10, 0),
+                black_time: ChessTime::new(10, 0),
                 tx: broadcast::channel(100).0,
             })
         });
@@ -184,6 +186,8 @@ mod tests {
                     request_key: String::from("w-10-0-0"),
                     white_player: Some(uuid::uuid!("6a2b4680-e96d-4e33-923f-3979d09d8ade")),
                     black_player: Some(Uuid::new_v4()),
+                    white_time: ChessTime::new(10, 0),
+                    black_time: ChessTime::new(10, 0),
                     tx: broadcast::channel(100).0,
                 })
             });
@@ -250,6 +254,8 @@ mod tests {
                     request_key: String::from("w-10-0-0"),
                     white_player: Some(Uuid::new_v4()),
                     black_player: Some(Uuid::new_v4()),
+                    white_time: ChessTime::new(10, 0),
+                    black_time: ChessTime::new(10, 0),
                     tx: broadcast::channel(100).0,
                 })
             });
