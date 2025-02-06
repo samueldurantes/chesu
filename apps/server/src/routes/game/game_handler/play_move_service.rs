@@ -46,6 +46,9 @@ impl<R: GameRepositoryTrait, M: RoomsManagerTrait, W: WalletRepositoryTrait>
             .record_move(info.game_id, info.move_played)
             .await?;
 
+        self.rooms_manager
+            .handle_move_time(info.game_id, info.player_id)?;
+
         Ok(())
     }
 }

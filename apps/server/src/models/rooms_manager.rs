@@ -1,7 +1,7 @@
 use super::event::Event;
 use super::game::PlayerColor;
 use crate::{http::Result, states::rooms_manager, Error};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use mockall::automock;
 use std::{
     collections::HashMap,
@@ -28,17 +28,35 @@ pub struct Room {
 #[derive(Debug, Clone)]
 pub struct ChessTime {
     pub rest: i32,
-    pub last_move: Option<Utc>,
+    pub last_move: Option<DateTime<Utc>>,
     pub additional_time: i32,
 }
 
 impl ChessTime {
-    pub fn new(rest: i32, additional_time: i32) -> ChessTime {
+    pub fn new(time: i32, additional_time: i32) -> ChessTime {
         Self {
-            rest,
+            rest: time * 60,
             last_move: None,
             additional_time,
         }
+    }
+
+    pub fn handle_move(&mut self) -> Result<i32, String> {
+        let now = Utc::now();
+
+        if let Some(last) = self.last_move {
+            self.rest -= (now - last).num_seconds() as i32;
+        }
+
+        if self.rest < 0 {
+            return Err(String::from("Your time is gone!"));
+        }
+
+        self.last_move = Some(now);
+
+        self.rest += self.additional_time;
+
+        Ok(self.rest)
     }
 }
 
@@ -109,9 +127,9 @@ pub struct CreateRoomInfo {
 #[automock]
 pub trait RoomsManagerTrait: Send + Sync {
     fn get_room_tx(&self, room_id: Uuid) -> Result<broadcast::Sender<String>>;
-
     fn get_room(&self, room_id: Uuid) -> Result<Room>;
     fn create_room(&self, info: CreateRoomInfo);
+    fn handle_move_time(&self, room_id: Uuid, player_id: Uuid) -> Result<i32, String>;
     fn add_player(
         &self,
         room_id: Uuid,
@@ -212,6 +230,36 @@ impl RoomsManagerTrait for RoomsManager {
 
     fn remove_room(&self, room_id: Uuid) {
         self.game_rooms.lock().unwrap().remove(&room_id);
+    }
+
+    fn handle_move_time(&self, room_id: Uuid, player_id: Uuid) -> Result<i32, String> {
+        let room = self.get_room(room_id)?;
+
+        tracing::info!("Actual Time, {:#?}", room);
+
+        match Some(player_id) {
+            p if p == room.white_player => self
+                .game_rooms
+                .lock()
+                .unwrap()
+                .get_mut(&room_id)
+                .ok_or(Error::NotFound {
+                    message: String::from("Room not found!"),
+                })?
+                .white_time
+                .handle_move(),
+            p if p == room.black_player => self
+                .game_rooms
+                .lock()
+                .unwrap()
+                .get_mut(&room_id)
+                .ok_or(Error::NotFound {
+                    message: String::from("Room not found!"),
+                })?
+                .black_time
+                .handle_move(),
+            _ => Err(String::from("You are not playing!")),
+        }
     }
 }
 
